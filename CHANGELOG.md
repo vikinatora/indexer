@@ -1,3 +1,12 @@
+## [5.185.5](https://github.com/reservoirprotocol/indexer/compare/v5.185.4...v5.185.5) (2022-08-31)
+
+
+### Bug Fixes
+
+* add backfill job for fixing missing sale currency price ([7354ba7](https://github.com/reservoirprotocol/indexer/commit/7354ba77be3bc116c53dc25640f85231f5253efb))
+
+
+
 ## [5.185.4](https://github.com/reservoirprotocol/indexer/compare/v5.185.3...v5.185.4) (2022-08-31)
 
 
