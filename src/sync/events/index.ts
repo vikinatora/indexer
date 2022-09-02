@@ -2158,6 +2158,74 @@ export const syncEvents = async (
               break;
             }
 
+            case "zora-ask-created":
+            case "zora-ask-price-updated": {
+              const { args } = eventData.abi.parseLog(log);
+              const tokenContract = args["tokenContract"].toLowerCase();
+              const tokenId = args["tokenId"].toString();
+              const ask = args["ask"];
+              const seller = ask["seller"].toLowerCase();
+              const askCurrency = ask["askCurrency"].toLowerCase();
+              const askPrice = ask["askPrice"].toString();
+
+              // Handle: prices
+
+              const prices = await getUSDAndNativePrices(
+                askCurrency,
+                askPrice,
+                baseEventParams.timestamp
+              );
+              if (!prices.nativePrice) {
+                // We must always have the native price
+                break;
+              }
+
+              foundationOrders.push({
+                orderParams: {
+                  contract: tokenContract,
+                  tokenId,
+                  maker: seller,
+                  price: prices.nativePrice,
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                },
+                metadata: {
+                  source: "Zora",
+                },
+              });
+
+              break;
+            }
+
+            case "zora-ask-canceled": {
+              const { args } = eventData.abi.parseLog(log);
+              const tokenContract = args["tokenContract"].toLowerCase();
+              const tokenId = args["tokenId"].toString();
+
+              const orderId = keccak256(["address", "uint256"], [tokenContract, tokenId]);
+
+              // Custom handling to support on-chain orderbook quirks.
+              cancelEventsFoundation.push({
+                orderKind: "zora-v3",
+                orderId,
+                baseEventParams,
+              });
+              orderInfos.push({
+                context: `cancelled-${orderId}-${baseEventParams.txHash}`,
+                id: orderId,
+                trigger: {
+                  kind: "cancel",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                  logIndex: baseEventParams.logIndex,
+                  batchIndex: baseEventParams.batchIndex,
+                  blockHash: baseEventParams.blockHash,
+                },
+              });
+
+              break;
+            }
+
             case "zora-ask-filled": {
               const { args } = eventData.abi.parseLog(log);
               const tokenContract = args["tokenContract"].toLowerCase();
