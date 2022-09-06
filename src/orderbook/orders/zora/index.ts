@@ -11,13 +11,17 @@ import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
+import { s } from "@reservoir0x/sdk/dist/utils";
 
 export type OrderInfo = {
   orderParams: {
+    tokenContract: string; // address
+    tokenId: number; // uint256
+    askPrice: string; // uint256
+    askCurrency: string; // address
+    sellerFundsRecipient: string; // address
+    findersFeeBps: number; // uint16
     maker: string;
-    contract: string;
-    tokenId: string;
-    price: string;
     txHash: string;
     txTimestamp: number;
   };
@@ -37,7 +41,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
     try {
       // On Zora, we can only have a single currently active order per NFT
-      const id = keccak256(["address", "uint256"], [orderParams.contract, orderParams.tokenId]);
+      const id = keccak256(
+        ["address", "uint256"],
+        [orderParams.tokenContract, orderParams.tokenId]
+      );
 
       // Ensure that the order is not cancelled
       const cancelResult = await redb.oneOrNone(
@@ -101,7 +108,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             `,
             {
               maker: toBuffer(orderParams.maker),
-              price: orderParams.price,
+              price: orderParams.askPrice,
               id,
             }
           );
@@ -126,10 +133,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       const [{ id: tokenSetId }] = await tokenSet.singleToken.save([
         {
-          id: `token:${orderParams.contract}:${orderParams.tokenId}`,
+          id: `token:${orderParams.tokenContract}:${orderParams.tokenId}`,
           schemaHash,
-          contract: orderParams.contract,
-          tokenId: orderParams.tokenId,
+          contract: orderParams.tokenContract,
+          tokenId: s(orderParams.tokenId),
         },
       ]);
 
@@ -157,7 +164,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           WHERE collections.contract = $/contract/
           LIMIT 1
         `,
-        { contract: toBuffer(orderParams.contract) }
+        { contract: toBuffer(orderParams.tokenContract) }
       );
       for (const { bps, recipient } of royaltiesResult?.royalties || []) {
         feeBreakdown.push({
@@ -171,7 +178,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const validTo = `'Infinity'`;
       orderValues.push({
         id,
-        kind: `foundation`,
+        kind: `zora-v3`,
         side: "sell",
         fillability_status: "fillable",
         approval_status: "approved",
@@ -179,18 +186,18 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         token_set_schema_hash: toBuffer(schemaHash),
         maker: toBuffer(orderParams.maker),
         taker: toBuffer(AddressZero),
-        price: orderParams.price.toString(),
-        value: orderParams.price.toString(),
+        price: orderParams.askPrice.toString(),
+        value: orderParams.askPrice.toString(),
         currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
-        currency_price: orderParams.price.toString(),
-        currency_value: orderParams.price.toString(),
+        currency_price: orderParams.askPrice.toString(),
+        currency_value: orderParams.askPrice.toString(),
         needs_conversion: null,
         quantity_remaining: "1",
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: null,
         source_id_int: source?.id,
         is_reservoir: null,
-        contract: toBuffer(orderParams.contract),
+        contract: toBuffer(orderParams.tokenContract),
         conduit: null,
         fee_bps: feeBreakdown.map((fb) => fb.bps).reduce((a, b) => a + b, 0),
         fee_breakdown: feeBreakdown,
