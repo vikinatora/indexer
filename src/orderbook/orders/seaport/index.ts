@@ -398,7 +398,7 @@ export const save = async (
             `
             SELECT
                c.id,
-               c.floor_sell_value,
+               c.floor_sell_value
             FROM collections c
             JOIN tokens t ON c.id = t.collection_id
             WHERE t.contract = $/contract/
