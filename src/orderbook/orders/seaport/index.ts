@@ -381,6 +381,73 @@ export const save = async (
         }
       }
 
+      if (info.side === "buy" && order.params.kind === "single-token") {
+        const typedInfo = info as typeof info & { tokenId: string };
+        const tokenId = typedInfo.tokenId;
+
+        logger.info(
+          "orders-seaport-save",
+          `Bid floor ask check - start. orderId=${id}, contract=${info.contract}, tokenId=${tokenId}`
+        );
+
+        try {
+          const collection: {
+            id: string;
+            floor_sell_value: string | null;
+          } | null = await redb.oneOrNone(
+            `
+            SELECT
+               c.id,
+               c.floor_sell_value,
+            FROM collections c
+            JOIN tokens t ON c.id = t.collection_id
+            WHERE t.contract = $/contract/
+              AND t.token_id = $/tokenId/
+              AND c.floor_sell_value IS NOT NULL
+          `,
+            {
+              contract: toBuffer(info.contract),
+              tokenId,
+            }
+          );
+
+          if (collection) {
+            const collectionFloorSale = bn(Number(collection.floor_sell_value));
+            const percentage = price.div(collectionFloorSale).mul(bn(100));
+
+            logger.info(
+              "orders-seaport-save",
+              `Bid floor ask check - collection check. orderId=${id}, contract=${
+                info.contract
+              }, tokenId=${tokenId}, collectionId=${collection.id}, collectionFloorAsk=${
+                collection.floor_sell_value
+              }, percentage=${percentage.toString()}`
+            );
+
+            if (percentage < bn(80)) {
+              logger.info(
+                "orders-seaport-save",
+                `Bid floor ask check - too low. orderId=${id}, contract=${
+                  info.contract
+                }, tokenId=${tokenId}, collectionId=${collection.id}, collectionFloorAsk=${
+                  collection.floor_sell_value
+                }, percentage=${percentage.toString()}`
+              );
+
+              return results.push({
+                id,
+                status: "bid-too-low",
+              });
+            }
+          }
+        } catch (error) {
+          logger.error(
+            "orders-seaport-save",
+            `Bid floor ask check error. orderId=${id}, contract=${info.contract}, tokenId=${tokenId}, error=${error}`
+          );
+        }
+      }
+
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
       const validTo = endTime
         ? `date_trunc('seconds', to_timestamp(${order.params.endTime}))`
