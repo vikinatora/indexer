@@ -421,24 +421,24 @@ export const save = async (
                 info.contract
               }, tokenId=${tokenId}, collectionId=${collection.id}, collectionFloorAsk=${
                 collection.floor_sell_value
-              }, percentage=${percentage.toString()}`
+              }, price=${price.toString()}, value=${value.toString()}, percentage=${percentage.toString()}`
             );
 
-            if (percentage < bn(80)) {
-              logger.info(
-                "orders-seaport-save",
-                `Bid floor ask check - too low. orderId=${id}, contract=${
-                  info.contract
-                }, tokenId=${tokenId}, collectionId=${collection.id}, collectionFloorAsk=${
-                  collection.floor_sell_value
-                }, percentage=${percentage.toString()}`
-              );
-
-              return results.push({
-                id,
-                status: "bid-too-low",
-              });
-            }
+            // if (percentage < bn(80)) {
+            //   logger.info(
+            //     "orders-seaport-save",
+            //     `Bid floor ask check - too low. orderId=${id}, contract=${
+            //       info.contract
+            //     }, tokenId=${tokenId}, collectionId=${collection.id}, collectionFloorAsk=${
+            //       collection.floor_sell_value
+            //     }, price=${price.toString()}, percentage=${percentage.toString()}`
+            //   );
+            //
+            //   return results.push({
+            //     id,
+            //     status: "bid-too-low",
+            //   });
+            // }
           }
         } catch (error) {
           logger.error(
