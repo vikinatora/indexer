@@ -412,7 +412,7 @@ export const save = async (
           );
 
           if (collection) {
-            const collectionFloorSale = bn(Number(collection.floor_sell_value));
+            const collectionFloorSale = bn(collection.floor_sell_value!);
             const percentage = price.div(collectionFloorSale).mul(bn(100));
 
             logger.info(
