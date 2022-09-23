@@ -349,7 +349,8 @@ export const getCollectionsV5Options: RouteOptions = {
       switch (query.sortBy) {
         case "1DayVolume": {
           if (query.continuation) {
-            conditions.push(`collections.day1_volume < $/continuation/`);
+            const sign = query.continuation == "0" ? "<" : "<";
+            conditions.push(`collections.day1_volume ${sign} $/continuation/`);
           }
           orderBy = ` ORDER BY collections.day1_volume DESC`;
 
@@ -358,7 +359,8 @@ export const getCollectionsV5Options: RouteOptions = {
 
         case "7DayVolume": {
           if (query.continuation) {
-            conditions.push(`collections.day7_volume < $/continuation/`);
+            const sign = query.continuation == "0" ? "<" : "<";
+            conditions.push(`collections.day7_volume ${sign} $/continuation/`);
           }
           orderBy = ` ORDER BY collections.day7_volume DESC`;
 
@@ -367,7 +369,8 @@ export const getCollectionsV5Options: RouteOptions = {
 
         case "30DayVolume": {
           if (query.continuation) {
-            conditions.push(`collections.day30_volume < $/continuation/`);
+            const sign = query.continuation == "0" ? "<" : "<";
+            conditions.push(`collections.day30_volume ${sign} $/continuation/`);
           }
           orderBy = ` ORDER BY collections.day30_volume DESC`;
 
@@ -377,8 +380,10 @@ export const getCollectionsV5Options: RouteOptions = {
         case "allTimeVolume":
         default: {
           if (query.continuation) {
-            conditions.push(`collections.all_time_volume < $/continuation/`);
+            const sign = query.continuation == "0" ? "<" : "<";
+            conditions.push(`collections.all_time_volume ${sign} $/continuation/`);
           }
+
           orderBy = ` ORDER BY collections.all_time_volume DESC`;
 
           break;
@@ -428,7 +433,7 @@ export const getCollectionsV5Options: RouteOptions = {
       `;
 
       // Any further joins might not preserve sorting
-      baseQuery += orderBy.replace("collections", "x");
+      baseQuery += orderBy.replace(/collections/g, "x");
 
       const results = await redb.manyOrNone(baseQuery, query);
 
