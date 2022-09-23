@@ -381,7 +381,7 @@ export const save = async (
         }
       }
 
-      if (info.side === "buy" && order.params.kind === "single-token") {
+      if (info.side === "buy" && order.params.kind === "single-token" && !isReservoir) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
 
@@ -412,8 +412,9 @@ export const save = async (
           );
 
           if (collection) {
-            const collectionFloorSale = bn(collection.floor_sell_value!);
-            const percentage = price.div(collectionFloorSale).mul(bn(100));
+            const collectionFloorSale = Number(collection.floor_sell_value!);
+            const bidValue = value.toNumber();
+            const percentage = (bidValue / collectionFloorSale) * 100;
 
             logger.info(
               "orders-seaport-save",
