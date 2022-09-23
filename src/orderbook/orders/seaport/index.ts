@@ -381,7 +381,7 @@ export const save = async (
         }
       }
 
-      if (info.side === "buy" && order.params.kind === "single-token" && !isReservoir) {
+      if (info.side === "buy" && order.params.kind === "single-token") {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
 
