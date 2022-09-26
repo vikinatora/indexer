@@ -1,3 +1,68 @@
+# [5.257.0](https://github.com/reservoirprotocol/indexer/compare/v5.256.2...v5.257.0) (2022-09-23)
+
+
+### Bug Fixes
+
+* deploy ([2e76041](https://github.com/reservoirprotocol/indexer/commit/2e760415ff8ed0e53be95de690043290a592e404))
+
+
+### Features
+
+* create new oracle api version ([264bd46](https://github.com/reservoirprotocol/indexer/commit/264bd461e469dafa6f7d23280aed924087de80ad))
+* fix read key from cache ([20baf14](https://github.com/reservoirprotocol/indexer/commit/20baf1409d61df77afed4f1fd3fde03bf80a8765))
+* set api keys to tier 1 by default ([aad02a5](https://github.com/reservoirprotocol/indexer/commit/aad02a530f596e6c2d4d45bbd18665c6a28f6905))
+
+
+
+## [5.256.2](https://github.com/reservoirprotocol/indexer/compare/v5.256.1...v5.256.2) (2022-09-23)
+
+
+### Bug Fixes
+
+* domain hash ([0c6dcee](https://github.com/reservoirprotocol/indexer/commit/0c6dcee30f15725586cdf35161a548ecd5acab9f))
+
+
+
+## [5.256.1](https://github.com/reservoirprotocol/indexer/compare/v5.256.0...v5.256.1) (2022-09-23)
+
+
+### Bug Fixes
+
+* force reload sources ([4126ec4](https://github.com/reservoirprotocol/indexer/commit/4126ec4290dc8ca7bb32128f87196044ae360f12))
+
+
+
+# [5.256.0](https://github.com/reservoirprotocol/indexer/compare/v5.255.2...v5.256.0) (2022-09-23)
+
+
+### Features
+
+* fix collections sort ([cc79a53](https://github.com/reservoirprotocol/indexer/commit/cc79a5300e39449db88d15016bbc5d10214bf633))
+
+
+
+## [5.255.2](https://github.com/reservoirprotocol/indexer/compare/v5.255.1...v5.255.2) (2022-09-23)
+
+
+### Bug Fixes
+
+* remove forced sources reload ([b1e1ba2](https://github.com/reservoirprotocol/indexer/commit/b1e1ba26e8bc236fab4bf01546f57430d2cbed44))
+
+
+
+## [5.255.1](https://github.com/reservoirprotocol/indexer/compare/v5.255.0...v5.255.1) (2022-09-23)
+
+
+### Bug Fixes
+
+* cancel x2y2 bids on invalidation ([da29f75](https://github.com/reservoirprotocol/indexer/commit/da29f75df0933708ff71c7b7c05082a0b78ed5da))
+* ignore schema hash for contract-wide and single-token bids ([ffd491b](https://github.com/reservoirprotocol/indexer/commit/ffd491b03af213aa1f0b953270c31df7ea98d786))
+* query ([3b37bc9](https://github.com/reservoirprotocol/indexer/commit/3b37bc9c89dc7ac2781dd6a41ef44b7001953d65))
+* query ([343020b](https://github.com/reservoirprotocol/indexer/commit/343020b613732770d72dd0318e132d333f78ef9f))
+* query ([62cf6b5](https://github.com/reservoirprotocol/indexer/commit/62cf6b50150047a485b2b69538b753ea03049a22))
+
+
+
 # [5.255.0](https://github.com/reservoirprotocol/indexer/compare/v5.254.4...v5.255.0) (2022-09-23)
 
 
