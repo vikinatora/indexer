@@ -17,6 +17,9 @@ import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
+import { redis } from "@/common/redis";
+import { getNetworkSettings } from "@/config/network";
+import { Collections } from "@/models/collections";
 
 export type OrderInfo = {
   orderParams: Sdk.Seaport.Types.OrderComponents;
@@ -393,50 +396,32 @@ export const save = async (
         );
 
         try {
-          const collection: {
-            id: string;
-            floor_sell_value: string | null;
-          } | null = await redb.oneOrNone(
-            `
-            SELECT
-               c.id,
-               c.floor_sell_value
-            FROM collections c
-            JOIN tokens t ON c.id = t.collection_id
-            WHERE t.contract = $/contract/
-              AND t.token_id = $/tokenId/
-              AND c.floor_sell_value IS NOT NULL
-          `,
-            {
-              contract: toBuffer(info.contract),
-              tokenId,
-            }
+          const collectionFloorAskValue = await getCollectionFloorAskValue(
+            info.contract,
+            Number(tokenId)
           );
 
-          if (collection) {
-            const collectionFloorSale = Number(collection.floor_sell_value!);
+          logger.info(
+            "orders-seaport-save",
+            `Bid floor ask check - collection ask get. orderId=${id}, contract=${
+              info.contract
+            }, tokenId=${tokenId}, collectionFloorAskValue=${collectionFloorAskValue}, value=${value.toString()}, collectionFloorAskValue=${collectionFloorAskValue}`
+          );
+
+          if (collectionFloorAskValue) {
             const bidValue = Number(value.toString());
-            const percentage = (bidValue / collectionFloorSale) * 100;
+            const percentage = (bidValue / collectionFloorAskValue) * 100;
 
             logger.info(
               "orders-seaport-save",
               `Bid floor ask check - collection check. orderId=${id}, contract=${
                 info.contract
-              }, tokenId=${tokenId}, collectionId=${collection.id}, collectionFloorAsk=${
-                collection.floor_sell_value
-              }, price=${price.toString()}, value=${value.toString()}, percentage=${percentage.toString()}`
+              }, tokenId=${tokenId}, collectionFloorAskValue=${collectionFloorAskValue}, value=${value.toString()}, percentage=${percentage.toString()}, min=${
+                config.orderbookSeaportMinBidValue
+              }`
             );
 
-            // if (percentage < bn(80)) {
-            //   logger.info(
-            //     "orders-seaport-save",
-            //     `Bid floor ask check - too low. orderId=${id}, contract=${
-            //       info.contract
-            //     }, tokenId=${tokenId}, collectionId=${collection.id}, collectionFloorAsk=${
-            //       collection.floor_sell_value
-            //     }, price=${price.toString()}, percentage=${percentage.toString()}`
-            //   );
-            //
+            // if (percentage < config.orderbookSeaportMinBidValue) {
             //   return results.push({
             //     id,
             //     status: "bid-too-low",
@@ -845,4 +830,35 @@ export const save = async (
   }
 
   return results;
+};
+
+export const getCollectionFloorAskValue = async (contract: string, tokenId: number) => {
+  if (getNetworkSettings().multiCollectionContracts.includes(contract)) {
+    logger.info(
+      "orders-seaport-save",
+      `Get collection floor ask - multi collection contract. contract=${contract}, tokenId=${tokenId}`
+    );
+
+    const collection = await Collections.getByContractAndTokenId(contract, tokenId);
+
+    return collection?.floorAskValue;
+  } else {
+    const collectionFloorAskValue = await redis.get(`collection-floor-ask:${contract}`);
+
+    logger.info(
+      "orders-seaport-save",
+      `Get collection floor ask - multi collection contract. contract=${contract}, tokenId=${tokenId}, collectionFloorAskValue=${collectionFloorAskValue}`
+    );
+
+    if (collectionFloorAskValue) {
+      return Number(collectionFloorAskValue);
+    } else {
+      const collection = await Collections.getByContractAndTokenId(contract, tokenId);
+      const collectionFloorAskValue = collection!.floorAskValue || 0;
+
+      await redis.set(`collection-floor-ask:${contract}`, collectionFloorAskValue, "EX", 3600);
+
+      return collectionFloorAskValue;
+    }
+  }
 };
