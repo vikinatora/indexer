@@ -834,27 +834,32 @@ export const save = async (
 
 export const getCollectionFloorAskValue = async (contract: string, tokenId: number) => {
   if (getNetworkSettings().multiCollectionContracts.includes(contract)) {
-    logger.info(
-      "orders-seaport-save",
-      `Get collection floor ask - multi collection contract. contract=${contract}, tokenId=${tokenId}`
-    );
-
     const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
-    return collection?.floorAskValue;
+    logger.info(
+      "orders-seaport-save",
+      `Get collection floor ask - multi collection contract. contract=${contract}, tokenId=${tokenId}, collectionFloorAskValue=${collection?.floorSellValue}`
+    );
+
+    return collection?.floorSellValue;
   } else {
     const collectionFloorAskValue = await redis.get(`collection-floor-ask:${contract}`);
 
-    logger.info(
-      "orders-seaport-save",
-      `Get collection floor ask - multi collection contract. contract=${contract}, tokenId=${tokenId}, collectionFloorAskValue=${collectionFloorAskValue}`
-    );
-
     if (collectionFloorAskValue) {
+      logger.info(
+        "orders-seaport-save",
+        `Get collection floor ask - single collection contract - got from cache. contract=${contract}, tokenId=${tokenId}, collectionFloorAskValue=${collectionFloorAskValue}`
+      );
+
       return Number(collectionFloorAskValue);
     } else {
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-      const collectionFloorAskValue = collection!.floorAskValue || 0;
+      const collectionFloorAskValue = collection!.floorSellValue || 0;
+
+      logger.info(
+        "orders-seaport-save",
+        `Get collection floor ask - single collection contract - got from db. contract=${contract}, tokenId=${tokenId}, collectionFloorAskValue=${collectionFloorAskValue}`
+      );
 
       await redis.set(`collection-floor-ask:${contract}`, collectionFloorAskValue, "EX", 3600);
 
