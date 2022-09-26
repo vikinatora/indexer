@@ -381,13 +381,15 @@ export const save = async (
         }
       }
 
-      if (info.side === "buy" && order.params.kind === "single-token" && !isReservoir) {
+      if (info.side === "buy" && order.params.kind === "single-token") {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
 
         logger.info(
           "orders-seaport-save",
-          `Bid floor ask check - start. orderId=${id}, contract=${info.contract}, tokenId=${tokenId}`
+          `Bid floor ask check - start. orderId=${id}, contract=${
+            info.contract
+          }, tokenId=${tokenId}, info=${JSON.stringify(info)}`
         );
 
         try {
@@ -413,7 +415,7 @@ export const save = async (
 
           if (collection) {
             const collectionFloorSale = Number(collection.floor_sell_value!);
-            const bidValue = value.toNumber();
+            const bidValue = Number(value.toString());
             const percentage = (bidValue / collectionFloorSale) * 100;
 
             logger.info(
