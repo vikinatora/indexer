@@ -68,6 +68,4 @@ export const config = {
   railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL),
 
   cipherSecret: String(process.env.CIPHER_SECRET),
-
-  orderbookSeaportMinBidValue: Number(process.env.ORDERBOOK_SEAPORT_MIN_BID_VALUE),
 };

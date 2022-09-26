@@ -35,7 +35,8 @@ type SaveResult = {
 
 export const save = async (
   orderInfos: OrderInfo[],
-  relayToArweave?: boolean
+  relayToArweave?: boolean,
+  validateBidValue?: boolean
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
@@ -384,9 +385,10 @@ export const save = async (
         }
       }
 
-      if (info.side === "buy" && order.params.kind === "single-token") {
+      if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
+        const seaportBidPercentageThreshold = 90;
 
         logger.info(
           "orders-seaport-save",
@@ -401,32 +403,24 @@ export const save = async (
             Number(tokenId)
           );
 
-          logger.info(
-            "orders-seaport-save",
-            `Bid floor ask check - collection ask get. orderId=${id}, contract=${
-              info.contract
-            }, tokenId=${tokenId}, collectionFloorAskValue=${collectionFloorAskValue}, value=${value.toString()}, collectionFloorAskValue=${collectionFloorAskValue}`
-          );
-
           if (collectionFloorAskValue) {
-            const bidValue = Number(value.toString());
-            const percentage = (bidValue / collectionFloorAskValue) * 100;
+            const percentage = (Number(value.toString()) / collectionFloorAskValue) * 100;
 
             logger.info(
               "orders-seaport-save",
-              `Bid floor ask check - collection check. orderId=${id}, contract=${
+              `Bid floor ask check - percentage threshold check. orderId=${id}, contract=${
                 info.contract
-              }, tokenId=${tokenId}, collectionFloorAskValue=${collectionFloorAskValue}, value=${value.toString()}, percentage=${percentage.toString()}, min=${
-                config.orderbookSeaportMinBidValue
+              }, tokenId=${tokenId}, value=${value.toString()}, percentage=${percentage.toString()}, seaportBidPercentageThreshold=${seaportBidPercentageThreshold}. bitTooLow=${
+                percentage < seaportBidPercentageThreshold
               }`
             );
 
-            // if (percentage < config.orderbookSeaportMinBidValue) {
-            //   return results.push({
-            //     id,
-            //     status: "bid-too-low",
-            //   });
-            // }
+            if (percentage < seaportBidPercentageThreshold) {
+              return results.push({
+                id,
+                status: "bid-too-low",
+              });
+            }
           }
         } catch (error) {
           logger.error(
