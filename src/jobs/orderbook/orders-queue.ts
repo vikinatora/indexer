@@ -54,6 +54,12 @@ if (config.doBackgroundWork) {
             break;
           }
 
+          case "zora-v3": {
+            const result = await orders.zora.save([info as orders.zora.OrderInfo]);
+            logger.info(QUEUE_NAME, `[zora-v3] Order save result: ${JSON.stringify(result)}`);
+            break;
+          }
+
           case "looks-rare": {
             const result = await orders.looksRare.save(
               [info as orders.looksRare.OrderInfo],
@@ -69,10 +75,7 @@ if (config.doBackgroundWork) {
               [info as orders.seaport.OrderInfo],
               relayToArweave
             );
-            logger.info(
-              QUEUE_NAME,
-              `[seaport] Order save result: ${JSON.stringify(result)}, info=${JSON.stringify(info)}`
-            );
+            logger.info(QUEUE_NAME, `[seaport] Order save result: ${JSON.stringify(result)}`);
 
             break;
           }
@@ -154,6 +157,11 @@ export type GenericOrderInfo =
   | {
       kind: "cryptopunks";
       info: orders.cryptopunks.OrderInfo;
+      relayToArweave?: boolean;
+    }
+  | {
+      kind: "zora-v3";
+      info: orders.zora.OrderInfo;
       relayToArweave?: boolean;
     }
   | {
