@@ -7,15 +7,15 @@ export interface BaseOrderBuildOptions {
   maker: string;
   contract: string;
   tokenId: string;
-  amount: number;
+  quantity: number;
   salt: number;
-  priceContract: string;
+  currency: string;
   nftAssetClass: string;
   weiPrice: string;
-  start: number;
-  end: number;
+  listingTime: number;
+  expirationTime: number;
   signature: string;
-  revenueSplits: Sdk.Universe.Types.IPart[];
+  fees: Sdk.Universe.Types.IPart[];
 }
 
 type OrderBuildInfo = {
@@ -55,14 +55,12 @@ export const getBuildInfo = async (
     tokenKind: collectionResult.kind,
     contract: options.contract,
     tokenId: options.tokenId,
-    tokenAmount: options.amount,
+    tokenAmount: options.quantity,
     price: options.weiPrice,
-    paymentToken: options.priceContract,
-    fees: options.revenueSplits,
-    salt: options.salt,
-    startTime: options.start,
-    endTime: options.end,
-    signature: options.signature,
+    paymentToken: options.currency,
+    fees: options.fees,
+    startTime: options.listingTime,
+    endTime: options.expirationTime,
   };
   return {
     params,
