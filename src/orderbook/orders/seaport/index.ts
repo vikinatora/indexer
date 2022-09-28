@@ -390,13 +390,6 @@ export const save = async (
         const tokenId = typedInfo.tokenId;
         const seaportBidPercentageThreshold = 90;
 
-        logger.info(
-          "orders-seaport-save",
-          `Bid floor ask check - start. orderId=${id}, contract=${
-            info.contract
-          }, tokenId=${tokenId}, info=${JSON.stringify(info)}`
-        );
-
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
             info.contract,
@@ -406,26 +399,31 @@ export const save = async (
           if (collectionFloorAskValue) {
             const percentage = (Number(value.toString()) / collectionFloorAskValue) * 100;
 
-            logger.info(
-              "orders-seaport-save",
-              `Bid floor ask check - percentage threshold check. orderId=${id}, contract=${
-                info.contract
-              }, tokenId=${tokenId}, value=${value.toString()}, percentage=${percentage.toString()}, seaportBidPercentageThreshold=${seaportBidPercentageThreshold}. bitTooLow=${
-                percentage < seaportBidPercentageThreshold
-              }`
-            );
-
             if (percentage < seaportBidPercentageThreshold) {
+              logger.info(
+                "orders-seaport-save",
+                `Bid value validation - too low. orderId=${id}, contract=${
+                  info.contract
+                }, tokenId=${tokenId}, value=${value.toString()}, collectionFloorAskValue=${collectionFloorAskValue}, percentage=${percentage.toString()}, threshold=${seaportBidPercentageThreshold}`
+              );
+
               return results.push({
                 id,
                 status: "bid-too-low",
               });
             }
+          } else {
+            logger.info(
+              "orders-seaport-save",
+              `Bid value validation - skip. orderId=${id}, contract=${
+                info.contract
+              }, tokenId=${tokenId}, value=${value.toString()}`
+            );
           }
         } catch (error) {
           logger.error(
             "orders-seaport-save",
-            `Bid floor ask check error. orderId=${id}, contract=${info.contract}, tokenId=${tokenId}, error=${error}`
+            `Bid value validation - error. orderId=${id}, contract=${info.contract}, tokenId=${tokenId}, error=${error}`
           );
         }
       }
@@ -829,31 +827,15 @@ export const save = async (
 export const getCollectionFloorAskValue = async (contract: string, tokenId: number) => {
   if (getNetworkSettings().multiCollectionContracts.includes(contract)) {
     const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-
-    logger.info(
-      "orders-seaport-save",
-      `Get collection floor ask - multi collection contract. contract=${contract}, tokenId=${tokenId}, collectionFloorAskValue=${collection?.floorSellValue}`
-    );
-
     return collection?.floorSellValue;
   } else {
     const collectionFloorAskValue = await redis.get(`collection-floor-ask:${contract}`);
 
     if (collectionFloorAskValue) {
-      logger.info(
-        "orders-seaport-save",
-        `Get collection floor ask - single collection contract - got from cache. contract=${contract}, tokenId=${tokenId}, collectionFloorAskValue=${collectionFloorAskValue}`
-      );
-
       return Number(collectionFloorAskValue);
     } else {
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
       const collectionFloorAskValue = collection!.floorSellValue || 0;
-
-      logger.info(
-        "orders-seaport-save",
-        `Get collection floor ask - single collection contract - got from db. contract=${contract}, tokenId=${tokenId}, collectionFloorAskValue=${collectionFloorAskValue}`
-      );
 
       await redis.set(`collection-floor-ask:${contract}`, collectionFloorAskValue, "EX", 3600);
 
