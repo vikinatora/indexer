@@ -19,7 +19,7 @@ export const getOrdersBidsV3Options: RouteOptions = {
   description: "Bids (offers)",
   notes:
     "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
-  tags: ["api", "Orders"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 5,
@@ -100,7 +100,7 @@ export const getOrdersBidsV3Options: RouteOptions = {
         .max(1000)
         .default(50)
         .description("Amount of items returned in response."),
-    }).oxor("token", "tokenSetId", "maker", "contracts", "ids"),
+    }).oxor("token", "tokenSetId", "contracts", "ids", "source", "native"),
   },
   response: {
     schema: Joi.object({

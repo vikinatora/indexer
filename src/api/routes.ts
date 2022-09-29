@@ -291,6 +291,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collections/sources/v1",
+    options: collectionsEndpoints.getSourcesListingsV1Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/collections/v1",
     options: collectionsEndpoints.getCollectionsV1Options,
   });
@@ -634,6 +640,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/orders/bids/v3",
     options: ordersEndpoints.getOrdersBidsV3Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/orders/bids/v4",
+    options: ordersEndpoints.getOrdersBidsV4Options,
   });
 
   server.route({
