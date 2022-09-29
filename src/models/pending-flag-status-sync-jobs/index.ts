@@ -9,12 +9,11 @@ export type SyncFlagStatusJobInfo =
       };
     }
   | {
-      kind: "token";
+      kind: "tokens";
       data: {
         collectionId: string;
         contract: string;
-        tokenId: string;
-        tokenIsFlagged: number;
+        tokens: { tokenId: string; tokenIsFlagged: number }[];
       };
     };
 
