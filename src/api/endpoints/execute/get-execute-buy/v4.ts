@@ -83,6 +83,9 @@ export const getExecuteBuyV4Options: RouteOptions = {
       partial: Joi.boolean()
         .default(false)
         .description("If true, partial orders will be accepted."),
+      skipErrors: Joi.boolean()
+        .default(false)
+        .description("If true, then skip any errors in processing."),
       maxFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional. Set custom gas price."),
@@ -469,6 +472,7 @@ export const getExecuteBuyV4Options: RouteOptions = {
         return { path };
       }
 
+      const skippedIndexes: number[] = [];
       const router = new Sdk.Router.Router(config.chainId, baseProvider);
       const tx = await router.fillListingsTx(listingDetails, payload.taker, {
         referrer: payload.source,
@@ -477,6 +481,8 @@ export const getExecuteBuyV4Options: RouteOptions = {
           bps: payload.referrerFeeBps ?? 0,
         },
         partial: payload.partial,
+        skipErrors: payload.skipErrors,
+        skippedIndexes,
         forceRouter: payload.forceRouter,
         directFillingData: {
           conduitKey:
@@ -570,7 +576,7 @@ export const getExecuteBuyV4Options: RouteOptions = {
 
       return {
         steps,
-        path,
+        path: path.filter((_, i) => !skippedIndexes.includes(i)),
       };
     } catch (error) {
       logger.error(`get-execute-buy-${version}-handler`, `Handler failure: ${error}`);
