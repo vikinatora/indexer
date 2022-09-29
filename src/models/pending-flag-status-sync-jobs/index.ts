@@ -23,12 +23,20 @@ export type SyncFlagStatusJobInfo =
 export class PendingFlagStatusSyncJobs {
   public key = "pending-flag-status-sync-jobs";
 
-  public async add(jobs: SyncFlagStatusJobInfo[]) {
-    return await redis.zadd(
-      this.key,
-      "NX",
-      ...jobs.map((job) => [Date.now(), JSON.stringify(job)]).flat()
-    );
+  public async add(jobs: SyncFlagStatusJobInfo[], prioritized = false) {
+    if (prioritized) {
+      return await redis.zadd(
+        this.key,
+        "NX",
+        ...jobs.map((job) => ["-inf", JSON.stringify(job)]).flat()
+      );
+    } else {
+      return await redis.zadd(
+        this.key,
+        "NX",
+        ...jobs.map((job) => [Date.now(), JSON.stringify(job)]).flat()
+      );
+    }
   }
 
   public async next(): Promise<SyncFlagStatusJobInfo | null> {

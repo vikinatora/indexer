@@ -62,19 +62,22 @@ export const postFlagAddressOptions: RouteOptions = {
             const contract = fromBuffer(tokensByCollection[collectionId][0].contract);
 
             const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
-            await pendingFlagStatusSyncJobs.add([
-              {
-                kind: "tokens",
-                data: {
-                  collectionId,
-                  contract,
-                  tokens: tokensByCollection[collectionId].map(({ token_id, is_flagged }) => ({
-                    tokenId: token_id,
-                    tokenIsFlagged: is_flagged,
-                  })),
+            await pendingFlagStatusSyncJobs.add(
+              [
+                {
+                  kind: "tokens",
+                  data: {
+                    collectionId,
+                    contract,
+                    tokens: tokensByCollection[collectionId].map(({ token_id, is_flagged }) => ({
+                      tokenId: token_id,
+                      tokenIsFlagged: is_flagged,
+                    })),
+                  },
                 },
-              },
-            ]);
+              ],
+              true
+            );
 
             await flagStatusProcessQueue.addToQueue();
           }
