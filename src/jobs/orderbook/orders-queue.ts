@@ -76,7 +76,12 @@ if (config.doBackgroundWork) {
               relayToArweave,
               validateBidValue
             );
-            logger.info(QUEUE_NAME, `[seaport] Order save result: ${JSON.stringify(result)}`);
+            logger.info(
+              QUEUE_NAME,
+              `[seaport] Order save result: ${JSON.stringify(result)}, info: ${JSON.stringify(
+                info
+              )}`
+            );
 
             break;
           }
