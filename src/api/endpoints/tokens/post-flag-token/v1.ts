@@ -3,11 +3,9 @@
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
-import _ from "lodash";
 
 import { logger } from "@/common/logger";
 import { Tokens } from "@/models/tokens";
-import { ApiKeyManager } from "@/models/api-keys";
 
 import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
@@ -23,9 +21,6 @@ export const postFlagTokenV1Options: RouteOptions = {
     },
   },
   validate: {
-    headers: Joi.object({
-      "x-api-key": Joi.string().required(),
-    }).options({ allowUnknown: true }),
     payload: Joi.object({
       token: Joi.string()
         .lowercase()
@@ -50,12 +45,6 @@ export const postFlagTokenV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
-
-    if (_.isNull(apiKey)) {
-      throw Boom.unauthorized("Wrong or missing API key");
-    }
-
     const payload = request.payload as any;
     const [contract, tokenId] = payload.token.split(":");
 
@@ -96,7 +85,7 @@ export const postFlagTokenV1Options: RouteOptions = {
 
       logger.info(
         `post-flag-token-${version}-handler`,
-        `${apiKey.appName} updated ${payload.token} to ${payload.flag}`
+        `Updated ${payload.token} to ${payload.flag}`
       );
       return { message: "Request accepted" };
     } catch (error) {
