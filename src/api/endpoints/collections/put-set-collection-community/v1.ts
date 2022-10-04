@@ -37,10 +37,10 @@ export const putSetCollectionCommunityV1Options: RouteOptions = {
   response: {
     schema: Joi.object({
       message: Joi.string(),
-    }).label(`postSetCollectionCommunity${version.toUpperCase()}Response`),
+    }).label(`putSetCollectionCommunity${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(
-        `post-set-collection-community-${version}-handler`,
+        `put-set-collection-community-${version}-handler`,
         `Wrong response schema: ${error}`
       );
       throw error;
@@ -65,7 +65,7 @@ export const putSetCollectionCommunityV1Options: RouteOptions = {
 
       return { message: "Success" };
     } catch (error) {
-      logger.error(`post-set-collection-community-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(`put-set-collection-community-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },
