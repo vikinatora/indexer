@@ -210,6 +210,7 @@ export const save = async (
 
           if (merkleRoot) {
             tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
+
             await tokenSet.tokenList.save([
               {
                 id: tokenSetId,
@@ -235,15 +236,36 @@ export const save = async (
                 );
 
                 const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
-                await pendingFlagStatusSyncJobs.add([
-                  {
-                    kind: "collection",
-                    data: {
-                      collectionId: info.contract,
-                      backfill: false,
+
+                if (getNetworkSettings().multiCollectionContracts.includes(info.contract)) {
+                  const collectionIds = await redb.manyOrNone(
+                    `
+                      SELECT id FROM "collections" "c"
+                      WHERE "c"."contract" = $/contract/
+                    `,
+                    { contract: toBuffer(info.contract) }
+                  );
+
+                  await pendingFlagStatusSyncJobs.add(
+                    collectionIds.map((c) => ({
+                      kind: "collection",
+                      data: {
+                        collectionId: c.id,
+                        backfill: false,
+                      },
+                    }))
+                  );
+                } else {
+                  await pendingFlagStatusSyncJobs.add([
+                    {
+                      kind: "collection",
+                      data: {
+                        collectionId: info.contract,
+                        backfill: false,
+                      },
                     },
-                  },
-                ]);
+                  ]);
+                }
 
                 await flagStatusProcessQueue.addToQueue();
               }
