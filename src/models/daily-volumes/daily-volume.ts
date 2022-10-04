@@ -425,6 +425,20 @@ export class DailyVolume {
       return false;
     }
 
+    try {
+      for (const row of mergedArr) {
+        await redis.zadd("collections_day30_rank", row.day30_rank, row.collection_id);
+      }
+    } catch (e: any) {
+      logger.error(
+        "daily-volumes",
+        JSON.stringify({
+          msg: `Error while caching day30_rank on redis`,
+          exception: e.message,
+        })
+      );
+    }
+
     return true;
   }
 
