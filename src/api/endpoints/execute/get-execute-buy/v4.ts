@@ -530,8 +530,8 @@ export const getExecuteBuyV4Options: RouteOptions = {
         if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {
           throw Boom.badData("Balance too low to proceed with transaction");
         }
-        let conduit = "";
 
+        let conduit: string;
         if (listingDetails.every((d) => d.kind === "seaport")) {
           // TODO: Have a default conduit for each exchange per chain
           conduit =
