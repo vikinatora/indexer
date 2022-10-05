@@ -87,7 +87,9 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         throw Boom.badRequest(`Collection ${payload.collection} not found`);
       }
 
-      if (payload.overrideCoolDown) {
+      const currentUtcTime = new Date().toISOString();
+
+      if (payload.metadataOnly) {
         // Refresh the collection metadata
         const tokenId = _.isEmpty(collection.tokenIdRange) ? "1" : `${collection.tokenIdRange[0]}`;
         await collectionUpdatesMetadata.addToQueue(collection.contract, tokenId);
@@ -111,7 +113,6 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         }
 
         // Update the last sync date
-        const currentUtcTime = new Date().toISOString();
         await Collections.update(payload.collection, { lastMetadataSync: currentUtcTime });
 
         // Update the collection id of any missing tokens
