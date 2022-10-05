@@ -220,59 +220,76 @@ export const save = async (
             ]);
 
             try {
-              const tokenSetTokensExist = await redb.oneOrNone(
-                `
+              const collectionDay30Rank = await redis.zscore(
+                "collections_day30_rank",
+                info.contract
+              );
+
+              if (!collectionDay30Rank || Number(collectionDay30Rank) <= 1000) {
+                logger.info(
+                  "orders-seaport-save",
+                  `TokenSet Check Start. orderId=${id}, contract=${info.contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}, collectionDay30Rank=${collectionDay30Rank}`
+                );
+
+                const tokenSetTokensExist = await redb.oneOrNone(
+                  `
                   SELECT 1 FROM "token_sets" "ts"
                   WHERE "ts"."id" = $/tokenSetId/
                   LIMIT 1
                 `,
-                { tokenSetId }
-              );
-
-              if (!tokenSetTokensExist) {
-                logger.info(
-                  "orders-seaport-save",
-                  `Missing tokenSet. orderId=${id}, contract=${info.contract}, tokenSetId=${tokenSetId}`
+                  { tokenSetId }
                 );
 
-                const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
+                if (!tokenSetTokensExist) {
+                  logger.info(
+                    "orders-seaport-save",
+                    `Missing tokenSet. orderId=${id}, contract=${info.contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}`
+                  );
 
-                if (getNetworkSettings().multiCollectionContracts.includes(info.contract)) {
-                  const collectionIds = await redb.manyOrNone(
-                    `
+                  const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
+
+                  if (getNetworkSettings().multiCollectionContracts.includes(info.contract)) {
+                    const collectionIds = await redb.manyOrNone(
+                      `
                       SELECT id FROM "collections" "c"
                       WHERE "c"."contract" = $/contract/
                     `,
-                    { contract: toBuffer(info.contract) }
-                  );
+                      { contract: toBuffer(info.contract) }
+                    );
 
-                  await pendingFlagStatusSyncJobs.add(
-                    collectionIds.map((c) => ({
-                      kind: "collection",
-                      data: {
-                        collectionId: c.id,
-                        backfill: false,
+                    await pendingFlagStatusSyncJobs.add(
+                      collectionIds.map((c) => ({
+                        kind: "collection",
+                        data: {
+                          collectionId: c.id,
+                          backfill: false,
+                        },
+                      }))
+                    );
+                  } else {
+                    await pendingFlagStatusSyncJobs.add([
+                      {
+                        kind: "collection",
+                        data: {
+                          collectionId: info.contract,
+                          backfill: false,
+                        },
                       },
-                    }))
-                  );
-                } else {
-                  await pendingFlagStatusSyncJobs.add([
-                    {
-                      kind: "collection",
-                      data: {
-                        collectionId: info.contract,
-                        backfill: false,
-                      },
-                    },
-                  ]);
+                    ]);
+                  }
+
+                  await flagStatusProcessQueue.addToQueue();
                 }
-
-                await flagStatusProcessQueue.addToQueue();
+              } else {
+                logger.info(
+                  "orders-seaport-save",
+                  `TokenSet Check Skip. orderId=${id}, contract=${info.contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}, collectionDay30Rank=${collectionDay30Rank}`
+                );
               }
             } catch (error) {
               logger.error(
                 "orders-seaport-save",
-                `tokenSet error. orderId=${id}, contract=${info.contract}, tokenSetId=${tokenSetId}, error=${error}`
+                `tokenSet error. orderId=${id}, contract=${info.contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}, error=${error}`
               );
             }
           }
