@@ -50,7 +50,8 @@ export class Sources {
             sources_v2.domain_hash AS "domainHash",
             sources_v2.name,
             sources_v2.address,
-            sources_v2.metadata
+            sources_v2.metadata,
+            sources_v2.optimized
           FROM sources_v2
         `
       );
