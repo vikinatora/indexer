@@ -21,6 +21,7 @@ export const postUpdateSourceOptions: RouteOptions = {
         .description("The source domain to sync. Example: `reservoir.market`"),
       icon: Joi.string().allow(""),
       title: Joi.string().allow(""),
+      optimized: Joi.boolean(),
     }),
   },
   handler: async (request: Request) => {
@@ -35,6 +36,7 @@ export const postUpdateSourceOptions: RouteOptions = {
       await sources.update(payload.source, {
         adminTitle: payload.title,
         adminIcon: payload.icon,
+        optimized: payload.optimized,
       });
 
       return {
