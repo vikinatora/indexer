@@ -33,11 +33,14 @@ export const postUpdateSourceOptions: RouteOptions = {
 
     try {
       const sources = await Sources.getInstance();
-      await sources.update(payload.source, {
-        adminTitle: payload.title,
-        adminIcon: payload.icon,
-        optimized: payload.optimized,
-      });
+      await sources.update(
+        payload.source,
+        {
+          adminTitle: payload.title,
+          adminIcon: payload.icon,
+        },
+        payload.optimized
+      );
 
       return {
         message: `Source ${payload.source} was updated with title=${payload.title}, icon=${payload.icon}`,

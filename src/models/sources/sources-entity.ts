@@ -16,7 +16,6 @@ export type SourcesMetadata = {
   url?: string;
   tokenUrlMainnet?: string;
   tokenUrlRinkeby?: string;
-  optimized?: boolean;
 };
 
 export class SourcesEntity {

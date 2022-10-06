@@ -196,27 +196,44 @@ export class Sources {
     return new SourcesEntity(source);
   }
 
-  public async update(domain: string, metadata: SourcesMetadata = {}) {
+  public async update(domain: string, metadata: SourcesMetadata = {}, optimized?: boolean) {
     const values: { [key: string]: string | boolean } = {
       domain,
     };
 
-    let jsonBuildObject = "";
-    _.forEach(metadata, (value, key) => {
-      if (value) {
-        jsonBuildObject += `'${key}', $/${key}/,`;
-        values[key] = value;
+    const updates = [];
+
+    if (!_.isEmpty(metadata)) {
+      let jsonBuildObject = "";
+
+      _.forEach(metadata, (value, key) => {
+        if (value) {
+          jsonBuildObject += `'${key}', $/${key}/,`;
+          values[key] = value;
+        }
+      });
+
+      if (jsonBuildObject.length) {
+        jsonBuildObject = _.trimEnd(jsonBuildObject, ",");
+        updates.push(`metadata = metadata || jsonb_build_object (${jsonBuildObject})`);
       }
-    });
-    if (!jsonBuildObject.length) {
+    }
+
+    if (optimized != undefined) {
+      values["optimized"] = optimized;
+      updates.push(`optimized = $/optimized/`);
+    }
+
+    if (!updates.length) {
       return;
     }
-    jsonBuildObject = _.trimEnd(jsonBuildObject, ",");
+
+    const updatesString = updates.map((c) => `${c}`).join(",");
 
     await idb.none(
       `
         UPDATE sources_v2 SET
-          metadata = metadata || jsonb_build_object (${jsonBuildObject})
+          ${updatesString}
         WHERE domain = $/domain/
       `,
       values
@@ -240,11 +257,13 @@ export class Sources {
       sourceEntity = _.cloneDeep(Sources.getDefaultSource());
     }
 
-    if (optimizeCheckoutURL && contract && tokenId) {
-      const defaultSource = Sources.getDefaultSource();
-      sourceEntity.metadata.url = this.getTokenUrl(defaultSource, contract, tokenId);
-    } else if (sourceEntity && contract && tokenId) {
-      sourceEntity.metadata.url = this.getTokenUrl(sourceEntity, contract, tokenId);
+    if (sourceEntity && contract && tokenId) {
+      if (!sourceEntity.optimized && optimizeCheckoutURL) {
+        const defaultSource = Sources.getDefaultSource();
+        sourceEntity.metadata.url = this.getTokenUrl(defaultSource, contract, tokenId);
+      } else {
+        sourceEntity.metadata.url = this.getTokenUrl(sourceEntity, contract, tokenId);
+      }
     }
 
     return sourceEntity;
