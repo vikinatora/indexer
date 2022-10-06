@@ -5,6 +5,7 @@ export type SourcesEntityParams = {
   name: string;
   address: string;
   metadata: SourcesMetadata;
+  optimized: boolean;
 };
 
 export type SourcesMetadata = {
@@ -15,6 +16,7 @@ export type SourcesMetadata = {
   url?: string;
   tokenUrlMainnet?: string;
   tokenUrlRinkeby?: string;
+  optimized?: boolean;
 };
 
 export class SourcesEntity {
@@ -24,6 +26,7 @@ export class SourcesEntity {
   domainHash: string;
   address: string;
   metadata: SourcesMetadata;
+  optimized: boolean;
 
   constructor(params: SourcesEntityParams) {
     this.id = params.id;
@@ -32,5 +35,6 @@ export class SourcesEntity {
     this.domainHash = params.domainHash;
     this.address = params.address;
     this.metadata = params.metadata;
+    this.optimized = params.optimized;
   }
 }

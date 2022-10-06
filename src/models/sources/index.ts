@@ -100,6 +100,7 @@ export class Sources {
         tokenUrlMainnet: "https://www.reservoir.market/${contract}/${tokenId}",
         tokenUrlRinkeby: "https://dev.reservoir.market/${contract}/${tokenId}",
       },
+      optimized: true,
     });
   }
 
@@ -196,7 +197,7 @@ export class Sources {
   }
 
   public async update(domain: string, metadata: SourcesMetadata = {}) {
-    const values: { [key: string]: string } = {
+    const values: { [key: string]: string | boolean } = {
       domain,
     };
 
@@ -226,7 +227,12 @@ export class Sources {
     await redis.publish(channels.sourcesUpdated, `Updated source ${domain}`);
   }
 
-  public get(id: number, contract?: string, tokenId?: string): SourcesEntity | undefined {
+  public get(
+    id: number,
+    contract?: string,
+    tokenId?: string,
+    optimizeCheckoutURL = false
+  ): SourcesEntity | undefined {
     let sourceEntity: SourcesEntity;
     if (id in this.sources) {
       sourceEntity = _.cloneDeep(this.sources[id]);
@@ -234,7 +240,10 @@ export class Sources {
       sourceEntity = _.cloneDeep(Sources.getDefaultSource());
     }
 
-    if (sourceEntity && contract && tokenId) {
+    if (optimizeCheckoutURL && contract && tokenId) {
+      const defaultSource = Sources.getDefaultSource();
+      sourceEntity.metadata.url = this.getTokenUrl(defaultSource, contract, tokenId);
+    } else if (sourceEntity && contract && tokenId) {
       sourceEntity.metadata.url = this.getTokenUrl(sourceEntity, contract, tokenId);
     }
 
