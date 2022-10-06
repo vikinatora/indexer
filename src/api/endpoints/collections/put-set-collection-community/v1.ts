@@ -57,7 +57,7 @@ export const putSetCollectionCommunityV1Options: RouteOptions = {
     }
 
     try {
-      if (params.community === "") {
+      if (payload.community === "") {
         const collection = await Collections.getById(params.collection);
 
         // If no collection found
