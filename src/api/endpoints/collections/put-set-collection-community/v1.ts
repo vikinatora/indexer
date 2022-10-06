@@ -57,12 +57,12 @@ export const putSetCollectionCommunityV1Options: RouteOptions = {
     }
 
     try {
-      if (payload.community === "") {
-        const collection = await Collections.getById(payload.collection);
+      if (params.community === "") {
+        const collection = await Collections.getById(params.collection);
 
         // If no collection found
         if (_.isNull(collection)) {
-          throw Boom.badRequest(`Collection ${payload.collection} not found`);
+          throw Boom.badRequest(`Collection ${params.collection} not found`);
         }
 
         if (apiKey.permissions?.assign_collection_to_community != collection.community) {
