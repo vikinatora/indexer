@@ -41,6 +41,12 @@ export const getExecuteSellV4Options: RouteOptions = {
         .description(
           "Address of wallet filling the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
         ),
+      quantity: Joi.number()
+        .integer()
+        .positive()
+        .description(
+          "Quantity of tokens user is selling. Only compatible when selling a single ERC1155 token. Example: `5`"
+        ),
       source: Joi.string()
         .lowercase()
         .pattern(regex.domain)
@@ -123,6 +129,7 @@ export const getExecuteSellV4Options: RouteOptions = {
               AND orders.side = 'buy'
               AND orders.fillability_status = 'fillable'
               AND orders.approval_status = 'approved'
+              AND orders.quantity_remaining >= $/quantity/
               AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
             LIMIT 1
           `,
@@ -130,6 +137,7 @@ export const getExecuteSellV4Options: RouteOptions = {
             id: payload.orderId,
             contract: toBuffer(contract),
             tokenId,
+            quantity: payload.quantity ?? 1,
           }
         );
       } else {
@@ -155,6 +163,7 @@ export const getExecuteSellV4Options: RouteOptions = {
               AND orders.side = 'buy'
               AND orders.fillability_status = 'fillable'
               AND orders.approval_status = 'approved'
+              AND orders.quantity_remaining >= $/quantity/
               AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
             ORDER BY orders.value DESC
             LIMIT 1
@@ -162,8 +171,15 @@ export const getExecuteSellV4Options: RouteOptions = {
           {
             contract: toBuffer(contract),
             tokenId,
+            quantity: payload.quantity ?? 1,
           }
         );
+      }
+
+      if (payload.quantity) {
+        if (orderResult.token_kind !== "erc1155") {
+          throw Boom.badRequest("Only ERC1155 orders support a quantity");
+        }
       }
 
       if (!orderResult) {
@@ -178,7 +194,7 @@ export const getExecuteSellV4Options: RouteOptions = {
           orderId: orderResult.id,
           contract,
           tokenId,
-          quantity: 1,
+          quantity: payload.quantity ?? 1,
           source: sourceId ? sources.get(sourceId)?.domain ?? null : null,
           // TODO: Add support for multiple currencies
           currency: Sdk.Common.Addresses.Weth[config.chainId],
@@ -195,6 +211,7 @@ export const getExecuteSellV4Options: RouteOptions = {
           kind: orderResult.token_kind,
           contract,
           tokenId,
+          amount: payload.quantity,
         }
       );
 
