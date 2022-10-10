@@ -98,7 +98,10 @@ export const getCollectionActivityV3Options: RouteOptions = {
           txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
-          source: Joi.object().allow(null),
+          order: Joi.object({
+            id: Joi.string().allow(null),
+            source: Joi.object().allow(null),
+          }),
         })
       ),
     }).label(`getCollectionActivity${version.toUpperCase()}Response`),
