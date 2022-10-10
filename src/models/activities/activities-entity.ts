@@ -49,6 +49,7 @@ export type ActivitiesEntityParams = {
   token_image: string;
   collection_name: string;
   collection_metadata: CollectionsMetadata;
+  order_source_id_int: number;
 };
 
 // Possible fields to be found in the metadata
@@ -72,6 +73,11 @@ export type ActivityCollection = {
   collectionImage?: string;
 };
 
+export type ActivityOrder = {
+  id: string | null;
+  sourceIdInt: number | null;
+};
+
 export class ActivitiesEntity {
   id: number;
   hash: string;
@@ -90,6 +96,7 @@ export class ActivitiesEntity {
   metadata: ActivityMetadata;
   token?: ActivityToken;
   collection?: ActivityCollection;
+  order?: ActivityOrder;
 
   constructor(params: ActivitiesEntityParams) {
     this.id = params.id;
@@ -116,6 +123,10 @@ export class ActivitiesEntity {
       collectionId: params.collection_id,
       collectionImage: params.collection_metadata?.imageUrl,
       collectionName: params.collection_name,
+    };
+    this.order = {
+      id: params.order_id,
+      sourceIdInt: params.order_source_id_int,
     };
   }
 }
