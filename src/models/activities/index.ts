@@ -70,6 +70,11 @@ export class Activities {
     const activities: ActivitiesEntityParams[] | null = await redb.manyOrNone(
       `SELECT *
              FROM activities
+             LEFT JOIN LATERAL (
+                SELECT source_id_int AS "order_source_id_int"
+                FROM orders
+                WHERE activities.order_id = orders.id
+             ) o ON TRUE
              ${continuationFilter}
              ORDER BY id ASC
              LIMIT $/limit/`,
@@ -143,7 +148,7 @@ export class Activities {
              LEFT JOIN LATERAL (
                 SELECT source_id_int AS "order_source_id_int"
                 FROM orders
-                WHERE user_activities.order_id = orders.id
+                WHERE activities.order_id = orders.id
              ) o ON TRUE`;
     }
 
@@ -208,7 +213,7 @@ export class Activities {
              LEFT JOIN LATERAL (
                 SELECT source_id_int AS "order_source_id_int"
                 FROM orders
-                WHERE user_activities.order_id = orders.id
+                WHERE activities.order_id = orders.id
              ) o ON TRUE
              WHERE contract = $/contract/
              AND token_id = $/tokenId/
