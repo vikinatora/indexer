@@ -92,6 +92,7 @@ export const getTokenActivityV3Options: RouteOptions = {
           batchIndex: Joi.number().allow(null),
           order: Joi.object({
             id: Joi.string().allow(null),
+            side: Joi.string().valid("ask", "bid").allow(null),
             source: Joi.object().allow(null),
           }),
         })
@@ -151,9 +152,10 @@ export const getTokenActivityV3Options: RouteOptions = {
           txHash: activity.metadata.transactionHash,
           logIndex: activity.metadata.logIndex,
           batchIndex: activity.metadata.batchIndex,
-          order: activity.order
+          order: activity.order?.id
             ? {
                 id: activity.order.id,
+                side: activity.order.side === "sell" ? "ask" : "bid",
                 source: orderSource
                   ? {
                       domain: orderSource?.domain,

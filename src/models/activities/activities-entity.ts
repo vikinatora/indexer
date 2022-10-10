@@ -49,6 +49,7 @@ export type ActivitiesEntityParams = {
   token_image: string;
   collection_name: string;
   collection_metadata: CollectionsMetadata;
+  order_side: string;
   order_source_id_int: number;
 };
 
@@ -58,6 +59,7 @@ export type ActivityMetadata = {
   logIndex?: number;
   batchIndex?: number;
   orderId?: string;
+  orderSide?: string;
   orderSourceIdInt?: number;
 };
 
@@ -75,6 +77,7 @@ export type ActivityCollection = {
 
 export type ActivityOrder = {
   id: string | null;
+  side: string | null;
   sourceIdInt: number | null;
 };
 
@@ -126,6 +129,7 @@ export class ActivitiesEntity {
     };
     this.order = {
       id: params.order_id,
+      side: params.order_side,
       sourceIdInt: params.order_source_id_int,
     };
   }

@@ -71,7 +71,9 @@ export class Activities {
       `SELECT *
              FROM activities
              LEFT JOIN LATERAL (
-                SELECT source_id_int AS "order_source_id_int"
+                SELECT 
+                    source_id_int AS "order_source_id_int",
+                    side AS "order_side"
                 FROM orders
                 WHERE activities.order_id = orders.id
              ) o ON TRUE
@@ -146,7 +148,9 @@ export class Activities {
                 WHERE activities.collection_id = collections.id
              ) c ON TRUE
              LEFT JOIN LATERAL (
-                SELECT source_id_int AS "order_source_id_int"
+                SELECT 
+                    source_id_int AS "order_source_id_int",
+                    side AS "order_side"
                 FROM orders
                 WHERE activities.order_id = orders.id
              ) o ON TRUE`;
@@ -211,7 +215,9 @@ export class Activities {
                 WHERE activities.collection_id = collections.id
              ) c ON TRUE
              LEFT JOIN LATERAL (
-                SELECT source_id_int AS "order_source_id_int"
+                SELECT 
+                    source_id_int AS "order_source_id_int",
+                    side AS "order_side"
                 FROM orders
                 WHERE activities.order_id = orders.id
              ) o ON TRUE
