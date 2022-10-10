@@ -139,7 +139,12 @@ export class Activities {
                 SELECT name AS "collection_name", metadata AS "collection_metadata"
                 FROM collections
                 WHERE activities.collection_id = collections.id
-             ) c ON TRUE`;
+             ) c ON TRUE
+             LEFT JOIN LATERAL (
+                SELECT source_id_int AS "order_source_id_int"
+                FROM orders
+                WHERE user_activities.order_id = orders.id
+             ) o ON TRUE`;
     }
 
     const activities: ActivitiesEntityParams[] | null = await redb.manyOrNone(
@@ -200,6 +205,11 @@ export class Activities {
                 FROM collections
                 WHERE activities.collection_id = collections.id
              ) c ON TRUE
+             LEFT JOIN LATERAL (
+                SELECT source_id_int AS "order_source_id_int"
+                FROM orders
+                WHERE user_activities.order_id = orders.id
+             ) o ON TRUE
              WHERE contract = $/contract/
              AND token_id = $/tokenId/
              ${continuation}
