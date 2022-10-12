@@ -230,11 +230,13 @@ const postOrder = async (
 };
 
 const postOpenSea = async (order: Sdk.Seaport.Order, apiKey: string) => {
+  const url = `https://${config.chainId === 5 ? "testnets-api." : "api."}opensea.io/v2/orders/${
+    config.chainId === 5 ? "goerli" : "ethereum"
+  }/seaport/${order.getInfo()?.side === "sell" ? "listings" : "offers"}`;
+
   await axios
     .post(
-      `https://${config.chainId === 5 ? "testnets-api." : "api."}opensea.io/v2/orders/${
-        config.chainId === 5 ? "goerli" : "ethereum"
-      }/seaport/${order.getInfo()?.side === "sell" ? "listings" : "offers"}`,
+      url,
       JSON.stringify({
         parameters: {
           ...order.params,
@@ -259,7 +261,7 @@ const postOpenSea = async (order: Sdk.Seaport.Order, apiKey: string) => {
       if (error.response) {
         logger.error(
           QUEUE_NAME,
-          `Failed to post order to OpenSea. order=${JSON.stringify(order)}, status: ${
+          `Failed to post order to OpenSea. order=${JSON.stringify(order)}, url=${url}, status: ${
             error.response.status
           }, data:${JSON.stringify(error.response.data)}`
         );
