@@ -37,10 +37,16 @@ export const getUserTopBidsV1Options: RouteOptions = {
         ),
     }),
     query: Joi.object({
-      collection: Joi.string()
-        .lowercase()
+      collection: Joi.alternatives(
+        Joi.string().lowercase(),
+        Joi.array().items(Joi.string().lowercase())
+      ).description(
+        "Filter to a particular collections. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+      ),
+      optimizeCheckoutURL: Joi.boolean()
+        .default(false)
         .description(
-          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "If true, urls will only be returned for optimized sources that support royalties."
         ),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
@@ -114,6 +120,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
             name: Joi.string().allow(null, ""),
             image: Joi.string().allow(null, ""),
             floorAskPrice: Joi.number().unsafe().allow(null),
+            lastSalePrice: Joi.number().unsafe().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow(null, ""),
@@ -181,7 +188,11 @@ export const getUserTopBidsV1Options: RouteOptions = {
     }
 
     if (query.collection) {
-      collectionFilter = `AND id = $/collection/`;
+      if (Array.isArray(query.collection)) {
+        collectionFilter = `AND id IN ($/collection:csv/)`;
+      } else {
+        collectionFilter = `AND id = $/collection/`;
+      }
     }
 
     try {
@@ -275,7 +286,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
             LIMIT 1
         ) y ON TRUE
         LEFT JOIN LATERAL (
-            SELECT t.token_id, t.name, t.image, t.collection_id, floor_sell_value AS "token_floor_sell_value"
+            SELECT t.token_id, t.name, t.image, t.collection_id, floor_sell_value AS "token_floor_sell_value", last_sell_value AS "token_last_sell_value"
             FROM tokens t
             WHERE t.contract = nb.contract
             AND t.token_id = nb.token_id
@@ -300,7 +311,12 @@ export const getUserTopBidsV1Options: RouteOptions = {
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
 
-        const source = sources.get(Number(r.source_id_int), contract, tokenId);
+        const source = sources.get(
+          Number(r.source_id_int),
+          contract,
+          tokenId,
+          query.optimizeCheckoutURL
+        );
 
         return {
           id: r.top_bid_id,
@@ -325,6 +341,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
             name: r.name,
             image: Assets.getLocalAssetsLink(r.image),
             floorAskPrice: r.token_floor_sell_value ? formatEth(r.token_floor_sell_value) : null,
+            lastSalePrice: r.token_last_sell_value ? formatEth(r.token_last_sell_value) : null,
             collection: {
               id: r.collection_id,
               name: r.collection_name,
