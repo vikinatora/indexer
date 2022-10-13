@@ -23,9 +23,6 @@ export const getActivityV3Options: RouteOptions = {
   validate: {
     query: Joi.object({
       limit: Joi.number().integer().min(1).max(1000).default(20),
-      startTimestamp: Joi.number().description(
-        "Get events after a particular unix timestamp (inclusive)"
-      ),
       continuation: Joi.string().pattern(regex.base64),
     }),
   },
@@ -64,11 +61,7 @@ export const getActivityV3Options: RouteOptions = {
     const query = request.query as any;
 
     try {
-      const activities = await Activities.getActivities(
-        query.continuation,
-        query.limit,
-        query.startTimestamp
-      );
+      const activities = await Activities.getActivities(query.continuation, query.limit);
 
       // If no activities found
       if (!activities.length) {

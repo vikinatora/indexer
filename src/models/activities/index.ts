@@ -60,11 +60,7 @@ export class Activities {
     return await idb.none(query, { blockHash });
   }
 
-  public static async getActivities(
-    continuation: null | string = null,
-    limit = 20,
-    startTimestamp = 0
-  ) {
+  public static async getActivities(continuation: null | string = null, limit = 20) {
     let continuationFilter = "";
 
     let eventTimestamp;
@@ -73,7 +69,7 @@ export class Activities {
     if (!_.isNull(continuation)) {
       [eventTimestamp, id] = splitContinuation(continuation, /^(\d+)_(\d+)$/);
 
-      continuationFilter = `AND (event_timestamp, id) > ($/eventTimestamp/, $/id/)`;
+      continuationFilter = `WHERE (event_timestamp, id) < ($/eventTimestamp/, $/id/)`;
     }
 
     const activities: ActivitiesEntityParams[] | null = await redb.manyOrNone(
@@ -86,16 +82,14 @@ export class Activities {
                 FROM orders
                 WHERE activities.order_id = orders.id
              ) o ON TRUE
-             WHERE event_timestamp >= $/startTimestamp/
              ${continuationFilter}
-             ORDER BY event_timestamp, id ASC
+             ORDER BY event_timestamp, id DESC
              LIMIT $/limit/`,
       {
         eventTimestamp,
         id,
         limit,
         continuation,
-        startTimestamp,
       }
     );
 
