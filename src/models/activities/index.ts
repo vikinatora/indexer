@@ -1,6 +1,6 @@
 import _ from "lodash";
 import { idb, pgp, redb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
+import { splitContinuation, toBuffer } from "@/common/utils";
 import {
   ActivitiesEntity,
   ActivitiesEntityInsertParams,
@@ -60,11 +60,20 @@ export class Activities {
     return await idb.none(query, { blockHash });
   }
 
-  public static async getActivities(continuation: null | number = null, limit = 20) {
+  public static async getActivities(
+    continuation: null | string = null,
+    limit = 20,
+    startTimestamp = 0
+  ) {
     let continuationFilter = "";
 
+    let eventTimestamp;
+    let id;
+
     if (!_.isNull(continuation)) {
-      continuationFilter = `WHERE id > $/continuation/`;
+      [eventTimestamp, id] = splitContinuation(continuation, /^(\d+)_(\d+)$/);
+
+      continuationFilter = `AND (event_timestamp, id) > ($/eventTimestamp/, $/id/)`;
     }
 
     const activities: ActivitiesEntityParams[] | null = await redb.manyOrNone(
@@ -77,12 +86,16 @@ export class Activities {
                 FROM orders
                 WHERE activities.order_id = orders.id
              ) o ON TRUE
+             WHERE event_timestamp >= $/startTimestamp/
              ${continuationFilter}
-             ORDER BY id ASC
+             ORDER BY event_timestamp, id ASC
              LIMIT $/limit/`,
       {
+        eventTimestamp,
+        id,
         limit,
         continuation,
+        startTimestamp,
       }
     );
 
