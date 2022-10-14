@@ -300,6 +300,7 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.day1_floor_sell_value,
           collections.day7_floor_sell_value,
           collections.day30_floor_sell_value,
+          collections.floor_sell_value,
           collections.token_count,
           collections.created_at,
           (
@@ -641,6 +642,13 @@ export const getCollectionsV5Options: RouteOptions = {
             case "createdAt": {
               continuation = buildContinuation(
                 `${new Date(lastCollection.created_at).toISOString()}_${lastCollection.id}`
+              );
+              break;
+            }
+
+            case "floorAskPrice": {
+              continuation = buildContinuation(
+                `${lastCollection.floor_sell_value}_${lastCollection.id}`
               );
               break;
             }
