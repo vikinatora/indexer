@@ -9,17 +9,39 @@ import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
 import * as fillUpdates from "@/jobs/fill-updates/queue";
+import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
   const fillEventsPartial: es.fills.Event[] = [];
 
   const fillInfos: fillUpdates.FillInfo[] = [];
+  const fillEvents: es.fills.Event[] = [];
+  const orderInfos: orderUpdatesById.OrderInfo[] = [];
+  const nonceCancelEvents: es.nonceCancels.Event[] = [];
 
   // Handle the events
   for (const { kind, baseEventParams, log } of events) {
     const eventData = getEventData([kind])[0];
     switch (kind) {
       // Element
+
+      case "element-erc721-order-cancelled":
+      case "element-erc1155-order-cancelled": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const maker = parsedLog.args["maker"].toLowerCase();
+        const nonce = parsedLog.args["nonce"].toString();
+
+        nonceCancelEvents.push({
+          orderKind: eventData!.kind.startsWith("element-erc721")
+            ? "element-erc721"
+            : "element-erc1155",
+          maker,
+          nonce,
+          baseEventParams,
+        });
+
+        break;
+      }
 
       case "element-erc721-sell-order-filled": {
         const { args } = eventData.abi.parseLog(log);
@@ -32,7 +54,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const orderHash = args["orderHash"].toLowerCase();
 
         // Handle: attribution
-
         const orderKind = "element-erc721";
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
@@ -61,10 +82,22 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEventsPartial.push({
+        const orderSide = "sell";
+
+        orderInfos.push({
+          context: `filled-${orderHash}`,
+          id: orderHash,
+          trigger: {
+            kind: "sale",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+        });
+
+        fillEvents.push({
           orderKind,
           orderId: orderHash,
-          orderSide: "sell",
+          orderSide,
           maker,
           taker,
           price: priceData.nativePrice,
@@ -134,23 +167,14 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEventsPartial.push({
-          orderKind,
-          orderId: orderHash,
-          orderSide: "buy",
-          maker,
-          taker,
-          price: priceData.nativePrice,
-          currency,
-          currencyPrice,
-          usdPrice: priceData.usdPrice,
-          contract: erc721Token,
-          tokenId: erc721TokenId,
-          amount: "1",
-          orderSourceId: attributionData.orderSource?.id,
-          aggregatorSourceId: attributionData.aggregatorSource?.id,
-          fillSourceId: attributionData.fillSource?.id,
-          baseEventParams,
+        orderInfos.push({
+          context: `filled-${orderHash}`,
+          id: orderHash,
+          trigger: {
+            kind: "sale",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
         });
 
         fillInfos.push({
@@ -207,6 +231,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           // We must always have the native price
           break;
         }
+
+        orderInfos.push({
+          context: `filled-${orderHash}-${baseEventParams.txHash}`,
+          id: orderHash,
+          trigger: {
+            kind: "sale",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+        });
 
         fillEventsPartial.push({
           orderKind,
@@ -282,6 +316,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
+        orderInfos.push({
+          context: `filled-${orderHash}-${baseEventParams.txHash}`,
+          id: orderHash,
+          trigger: {
+            kind: "sale",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+        });
+
         fillEventsPartial.push({
           orderKind,
           orderId: orderHash,
@@ -318,8 +362,10 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   }
 
   return {
+    nonceCancelEvents,
+    orderInfos,
     fillEventsPartial,
-
+    fillEvents,
     fillInfos,
   };
 };

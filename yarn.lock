@@ -1581,10 +1581,14 @@
     ethers "^5.6.8"
     merkletreejs "0.2.31"
 
-"@reservoir0x/sdk@0.0.197":
-  version "0.0.197"
-  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.197.tgz#6cba21e44f5d6bab8e24827c1a8245fa52080978"
-  integrity sha512-M6BoTlwLfWjPucyVcCgZn//uHVpY5IP4c025BsiM9RfmL3tgTPE3QH58+ryKtH69XbDijdULlanAKQAzttvlGg==
+"@reservoir0x/sdk@file:../core-fork/packages/sdk":
+  version "0.0.196"
+  dependencies:
+    ethers "^5.6.8"
+    merkletreejs "0.2.31"
+
+"@reservoir0x/sdk@file:/Users/fun/Documents/ios/adbug/blockchain/reservoirprotocol/core-fork/packages/sdk":
+  version "0.0.196"
   dependencies:
     ethers "^5.6.8"
     merkletreejs "0.2.31"

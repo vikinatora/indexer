@@ -4,6 +4,45 @@ import { Element } from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
 
+export const erc721OrderCancelled: EventData = {
+  kind: "element-erc721-order-cancelled",
+  addresses: { [Element.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0xa015ad2dc32f266993958a0fd9884c746b971b254206f3478bc43e2f125c7b9e",
+  numTopics: 1,
+  abi: new Interface([
+    `event ERC721OrderCancelled(
+      address maker,
+      uint256 nonce
+    )`,
+  ]),
+};
+
+export const hashNonceIncremented: EventData = {
+  kind: "element-hash-nonce-incremented",
+  addresses: { [Element.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x4cf3e8a83c6bf8a510613208458629675b4ae99b8029e3ab6cb6a86e5f01fd31",
+  numTopics: 1,
+  abi: new Interface([
+    `event HashNonceIncremented(
+      address maker,
+      uint256 nonce
+    )`,
+  ]),
+};
+
+export const erc1155OrderCancelled: EventData = {
+  kind: "element-erc1155-order-cancelled",
+  addresses: { [Element.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x4d5ea7da64f50a4a329921b8d2cab52dff4ebcc58b61d10ff839e28e91445684",
+  numTopics: 1,
+  abi: new Interface([
+    `event ERC1155OrderCancelled(
+      address maker,
+      uint256 nonce
+    )`,
+  ]),
+};
+
 export const erc721SellOrderFilled: EventData = {
   kind: "element-erc721-sell-order-filled",
   addresses: { [Element.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
