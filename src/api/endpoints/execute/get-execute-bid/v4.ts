@@ -33,6 +33,11 @@ import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/c
 // Universe
 import * as universeBuyToken from "@/orderbook/orders/universe/build/buy/token";
 
+// Element
+import * as elementBuyAttribute from "@/orderbook/orders/element/build/buy/attribute";
+import * as elementBuyToken from "@/orderbook/orders/element/build/buy/token";
+import * as elementBuyCollection from "@/orderbook/orders/element/build/buy/collection";
+
 const version = "v4";
 
 export const getExecuteBidV4Options: RouteOptions = {
@@ -677,6 +682,105 @@ export const getExecuteBidV4Options: RouteOptions = {
                       collection && params.excludeFlaggedTokens && !attributeKey && !attributeValue
                         ? collection
                         : undefined,
+                    isNonFlagged: params.excludeFlaggedTokens,
+                    orderbook: params.orderbook,
+                    source,
+                  },
+                },
+              },
+              orderIndex: i,
+            });
+
+            // Go on with the next bid
+            continue;
+          }
+
+          case "element": {
+            if (!["reservoir"].includes(params.orderbook)) {
+              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
+            }
+
+            let order: Sdk.Element.Order | undefined;
+            if (token) {
+              const [contract, tokenId] = token.split(":");
+              order = await elementBuyToken.build({
+                ...params,
+                maker,
+                contract,
+                tokenId,
+              });
+            } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
+              order = await elementBuyAttribute.build({
+                ...params,
+                maker,
+                collection,
+                attributes: [
+                  {
+                    key: attributeKey,
+                    value: attributeValue,
+                  },
+                ],
+              });
+            } else if (collection) {
+              order = await elementBuyCollection.build({
+                ...params,
+                maker,
+                collection,
+              });
+            }
+
+            if (!order) {
+              throw Boom.internal("Failed to generate order");
+            }
+
+            // Check the maker's approval
+            let approvalTx: TxData | undefined;
+            const wethApproval = await weth.getAllowance(
+              maker,
+              Sdk.ZeroExV4.Addresses.Exchange[config.chainId]
+            );
+            if (bn(wethApproval).lt(bn(order.params.erc20TokenAmount).add(order.getFeeAmount()))) {
+              approvalTx = weth.approveTransaction(
+                maker,
+                Sdk.ZeroExV4.Addresses.Exchange[config.chainId]
+              );
+            }
+
+            steps[0].items.push({
+              status: !wrapEthTx ? "complete" : "incomplete",
+              data: wrapEthTx,
+              orderIndex: i,
+            });
+            steps[1].items.push({
+              status: !approvalTx ? "complete" : "incomplete",
+              data: approvalTx,
+              orderIndex: i,
+            });
+            steps[2].items.push({
+              status: "incomplete",
+              data: {
+                sign: order.getSignatureData(),
+                post: {
+                  endpoint: "/order/v3",
+                  method: "POST",
+                  body: {
+                    order: {
+                      kind: "zeroex-v4",
+                      data: {
+                        ...order.params,
+                      },
+                    },
+                    tokenSetId,
+                    attribute:
+                      collection && attributeKey && attributeValue
+                        ? {
+                            collection,
+                            key: attributeKey,
+                            value: attributeValue,
+                          }
+                        : undefined,
+                    collection:
+                      collection && !attributeKey && !attributeValue ? collection : undefined,
                     isNonFlagged: params.excludeFlaggedTokens,
                     orderbook: params.orderbook,
                     source,

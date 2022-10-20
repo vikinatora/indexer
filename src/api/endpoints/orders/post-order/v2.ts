@@ -276,6 +276,28 @@ export const postOrderV2Options: RouteOptions = {
 
           return { message: "Success", orderId: result.id };
         }
+
+        case "element": {
+          if (orderbook !== "reservoir") {
+            throw new Error("Unsupported orderbook");
+          }
+
+          const orderInfo: orders.element.OrderInfo = {
+            orderParams: order.data,
+            metadata: {
+              schema,
+              source,
+            },
+          };
+          const [result] = await orders.element.save([orderInfo]);
+          if (result.status === "success") {
+            return { message: "Success", orderId: result.id };
+          } else {
+            const error = Boom.badRequest(result.status);
+            error.output.payload.orderId = result.id;
+            throw error;
+          }
+        }
       }
 
       return { message: "Request accepted" };

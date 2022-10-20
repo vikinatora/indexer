@@ -7,7 +7,7 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as arweaveRelay from "@/jobs/arweave-relay";
+// import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
@@ -123,9 +123,7 @@ export const save = async (
       const currentTime = now();
 
       // Check: order is not expired
-      // const expirationTime = BigNumber.from(order.params.expiry).and(BigNumber.from("0xffffffff")).toString();
       if (currentTime >= Number(expirationTime)) {
-        console.log("expired", new Date(Number(expirationTime) * 1000));
         return results.push({
           id,
           status: "expired",

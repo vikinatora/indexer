@@ -30,6 +30,10 @@ import * as x2y2Check from "@/orderbook/orders/x2y2/check";
 import * as zeroExV4SellToken from "@/orderbook/orders/zeroex-v4/build/sell/token";
 import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 
+// Element
+import * as elementSellToken from "@/orderbook/orders/element/build/sell/token";
+import * as elementCheck from "@/orderbook/orders/element/check";
+
 const version = "v2";
 
 export const getExecuteListV2Options: RouteOptions = {
@@ -566,6 +570,105 @@ export const getExecuteListV2Options: RouteOptions = {
               ...query,
               expirationTime: order.deadline,
               salt: order.salt,
+            },
+          };
+        }
+
+        case "element": {
+          // Exchange-specific checks
+          if (!["reservoir"].includes(query.orderbook)) {
+            throw Boom.badRequest("Unsupported orderbook");
+          }
+
+          // Make sure the fee information is correctly types
+          if (query.fee && !Array.isArray(query.fee)) {
+            query.fee = [query.fee];
+          }
+          if (query.feeRecipient && !Array.isArray(query.feeRecipient)) {
+            query.feeRecipient = [query.feeRecipient];
+          }
+          if (query.fee?.length !== query.feeRecipient?.length) {
+            throw Boom.badRequest("Invalid fee information");
+          }
+
+          const order = await elementSellToken.build({
+            ...query,
+            contract,
+            tokenId,
+          });
+          if (!order) {
+            throw Boom.internal("Failed to generate order");
+          }
+
+          // Will be set if an approval is needed before listing
+          let approvalTx: TxData | undefined;
+
+          // Check the order's fillability
+          try {
+            await elementCheck.offChainCheck(order, { onChainApprovalRecheck: true });
+          } catch (error: any) {
+            switch (error.message) {
+              case "no-balance-no-approval":
+              case "no-balance": {
+                // We cannot do anything if the user doesn't own the listed token
+                throw Boom.badData("Maker does not own the listed token");
+              }
+
+              case "no-approval": {
+                // Generate an approval transaction
+                const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";
+                approvalTx = (
+                  kind === "erc721"
+                    ? new Sdk.Common.Helpers.Erc721(baseProvider, order.params.nft)
+                    : new Sdk.Common.Helpers.Erc1155(baseProvider, order.params.nft)
+                ).approveTransaction(query.maker, Sdk.ZeroExV4.Addresses.Exchange[config.chainId]);
+
+                break;
+              }
+            }
+          }
+
+          const hasSignature = query.v && query.r && query.s;
+          return {
+            steps: [
+              {
+                ...steps[0],
+                status: approvalTx ? "incomplete" : "complete",
+                data: approvalTx,
+              },
+              {
+                ...steps[1],
+                status: hasSignature ? "complete" : "incomplete",
+                data: hasSignature ? undefined : order.getSignatureData(),
+              },
+              {
+                ...steps[2],
+                status: "incomplete",
+                data: !hasSignature
+                  ? undefined
+                  : {
+                      endpoint: "/order/v2",
+                      method: "POST",
+                      body: {
+                        order: {
+                          kind: "zeroex-v4",
+                          data: {
+                            ...order.params,
+                            v: query.v,
+                            r: query.r,
+                            s: query.s,
+                          },
+                        },
+                        orderbook: query.orderbook,
+                        source: query.source,
+                      },
+                    },
+              },
+            ],
+            query: {
+              ...query,
+              expirationTime: order.params.expiry,
+              nonce: order.params.nonce,
             },
           };
         }
