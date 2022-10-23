@@ -131,8 +131,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       case "element-erc721-buy-order-filled-v2":
       case "element-erc721-buy-order-filled": {
         const { args } = eventData.abi.parseLog(log);
-        // const maker = args["maker"].toLowerCase();
-        // let taker = args["taker"].toLowerCase();
+        const maker = args["maker"].toLowerCase();
+        const taker = args["taker"].toLowerCase();
         const erc20Token = args["erc20Token"].toLowerCase();
         const erc20TokenAmount = args["erc20TokenAmount"].toString();
         const erc721Token = args["erc721Token"].toLowerCase();
@@ -188,6 +188,25 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: "1",
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+        });
+
+        fillEvents.push({
+          orderKind,
+          orderId: orderHash,
+          orderSide: "sell",
+          maker,
+          taker,
+          price: priceData.nativePrice,
+          currency,
+          currencyPrice,
+          usdPrice: priceData.usdPrice,
+          contract: erc721Token,
+          tokenId: erc721TokenId,
+          amount: "1",
+          orderSourceId: attributionData.orderSource?.id,
+          aggregatorSourceId: attributionData.aggregatorSource?.id,
+          fillSourceId: attributionData.fillSource?.id,
+          baseEventParams,
         });
 
         break;
@@ -366,11 +385,14 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   }
 
   // console.log("orderInfos", orderInfos);
+  // console.log("fillEvents", fillEvents);
+
   return {
     nonceCancelEvents,
-    orderInfos,
     fillEventsPartial,
     fillEvents,
+
     fillInfos,
+    orderInfos,
   };
 };

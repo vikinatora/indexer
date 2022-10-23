@@ -87,6 +87,8 @@ export const offChainCheck = async (
       order.params.nftId,
       order.params.maker
     );
+
+    console.log("nftBalance", nftBalance.toString());
     if (nftBalance.lt(order.params.nftAmount ?? 1)) {
       hasBalance = false;
     }

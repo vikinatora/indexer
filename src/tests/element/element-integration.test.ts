@@ -5,24 +5,16 @@ import { wait } from "../utils/test";
 import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 import { Wallet } from "@ethersproject/wallet";
-import { Element } from "@reservoir0x/sdk";
+import { Element, Common } from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { parseEther } from "@ethersproject/units";
 import * as orders from "@/orderbook/orders";
-// import { ethers } from "ethers";
-// import { idb } from "@/common/db";
-import {
-  testNFTAddr,
-  // operator,
-  // operator2,
-  operatorKey,
-  operator2Key,
-} from "./__fixtures__/test-accounts";
+import { logger } from "@/common/logger";
 
-import { setupNFTs } from "../utils/nft";
+import { testNFTAddr, erc1155NFT, operatorKey, operator2Key } from "./__fixtures__/test-accounts";
+
+import { setupNFTs, setupERC1155NFTs } from "../utils/nft";
 import { getOrder } from "../utils/order";
-
-// import { toBuffer } from "@/common/utils";
 
 const operatorProvider = new Wallet(operatorKey, baseProvider);
 const operator2Provider = new Wallet(operator2Key, baseProvider);
@@ -47,15 +39,44 @@ describe("ElementTestnet", () => {
     ]),
     operatorProvider
   );
+
+  const erc1155 = new Contract(
+    erc1155NFT,
+    new Interface([
+      "function mint(uint256 tokenId) external",
+      "function mintMany(uint256 tokenId, uint256 amount) external",
+      "function balanceOf(address account, uint256 id) external view returns (uint256)",
+      "function setApprovalForAll(address operator, bool approved) external",
+      `function safeTransferFrom(
+        address from,
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes calldata data
+      ) external`,
+      `function safeBatchTransferFrom(
+        address from,
+        address to,
+        uint256[] calldata ids,
+        uint256[] calldata amounts,
+        bytes calldata data
+      ) external`,
+      "function isApprovedForAll(address account, address operator) external view returns (bool)",
+    ]),
+    operatorProvider
+  );
+
   const operator = Element.Addresses.Exchange[config.chainId];
 
-  const indexInterval = 60 * 1000;
+  const indexInterval = 80 * 1000;
 
-  beforeEach(async () => {
+  // beforeEach(async () => {
+  //   await setupNFTs(nftToken, seller, buyer, tokenId, operator);
+  // });
+
+  test("sellERC721", async () => {
     await setupNFTs(nftToken, seller, buyer, tokenId, operator);
-  });
 
-  test("listAndSell", async () => {
     const exchange = new Element.Exchange(chainId);
     const builder = new Element.Builders.SingleToken(chainId);
     const price = parseEther("0.001");
@@ -81,28 +102,163 @@ describe("ElementTestnet", () => {
 
     const orderId = sellOrder.hash();
 
-    // Store Order
+    logger.info("ElementTestnet", `Save ${orderId} to database`);
+
+    // Store order to database
     await orders.element.save([orderInfo]);
 
-    // console.log("saveResults", saveResults);
     await wait(10 * 1000);
 
-    // const order = await getOrder(orderId);
-
-    // expect(order?.fillability_status).toEqual("fillable");
-    // expect(order?.approval_status).toEqual("approved");
+    const ordeStatus = await getOrder(orderId);
+    logger.info("ElementTestnet", `Order status ${JSON.stringify(ordeStatus)}`);
 
     // Create matching buy order
     const buyOrder = sellOrder.buildMatching();
 
+    // Fill order
     const fillTx = await exchange.fillOrder(buyer, sellOrder, buyOrder);
+
+    logger.info("ElementTestnet", `Fill order=${orderId}, tx=${fillTx.hash}`);
+
     await fillTx.wait();
-    // console.log("fillTx", fillTx);
+
+    logger.info("ElementTestnet", `Waiting... ${indexInterval}`);
 
     await wait(indexInterval);
 
+    // Check order
     const orderAfter = await getOrder(orderId);
+    logger.info("ElementTestnet", `Order status ${JSON.stringify(orderAfter)}`);
+    expect(orderAfter?.fillability_status).toEqual("filled");
+  });
 
+  test("buyERC721", async () => {
+    await setupNFTs(nftToken, seller, buyer, tokenId, operator);
+
+    const exchange = new Element.Exchange(chainId);
+    const builder = new Element.Builders.SingleToken(chainId);
+    const price = parseEther("0.001");
+
+    const weth = new Common.Helpers.Weth(baseProvider, chainId);
+
+    // Mint weth to buyer
+    await weth.deposit(buyer, price);
+
+    // Approve the exchange contract for the buyer
+    const approveTx = await weth.approve(buyer, Element.Addresses.Exchange[chainId]);
+
+    await approveTx.wait();
+
+    await wait(20 * 1000);
+
+    // Build Sell order
+    const buyOrder = builder.build({
+      direction: "buy",
+      maker: buyer.address,
+      contract: nftToken.address,
+      tokenId: tokenId,
+      paymentToken: Common.Addresses.Weth[chainId],
+      price,
+      hashNonce: 0,
+      expiry: Math.floor(Date.now() / 1000) + 10000,
+    });
+
+    await buyOrder.sign(buyer);
+
+    const orderInfo: orders.element.OrderInfo = {
+      orderParams: buyOrder.params,
+      metadata: {},
+    };
+
+    const orderId = buyOrder.hash();
+
+    logger.info("ElementTestnet", `Save ${orderId} to database`);
+
+    // Store order to database
+    await orders.element.save([orderInfo]);
+
+    await wait(10 * 1000);
+
+    const ordeStatus = await getOrder(orderId);
+    logger.info("ElementTestnet", `Order status ${JSON.stringify(ordeStatus)}`);
+
+    // Create matching buy order
+    const sellOrder = buyOrder.buildMatching();
+
+    // Fill order
+    const fillTx = await exchange.fillOrder(seller, buyOrder, sellOrder);
+
+    logger.info("ElementTestnet", `Fill order=${orderId}, tx=${fillTx.hash}`);
+
+    await fillTx.wait();
+
+    logger.info("ElementTestnet", `Waiting... ${indexInterval}`);
+
+    await wait(indexInterval);
+
+    // Check order
+    const orderAfter = await getOrder(orderId);
+    logger.info("ElementTestnet", `Order status ${JSON.stringify(orderAfter)}`);
+    expect(orderAfter?.fillability_status).toEqual("filled");
+  });
+
+  test("buyERC1155", async () => {
+    await setupERC1155NFTs(erc1155, seller, buyer, tokenId, operator);
+    const exchange = new Element.Exchange(chainId);
+    const builder = new Element.Builders.SingleToken(chainId);
+    const price = parseEther("0.001");
+
+    // Build Sell order
+    const sellOrder = builder.build({
+      direction: "sell",
+      maker: seller.address,
+      contract: erc1155.address,
+      tokenId: tokenId,
+      amount: 1,
+      paymentToken: Element.Addresses.Eth[config.chainId],
+      price,
+      hashNonce: 0,
+      expiry: Math.floor(Date.now() / 1000) + 10000,
+    });
+
+    await sellOrder.sign(seller);
+
+    const orderInfo: orders.element.OrderInfo = {
+      orderParams: sellOrder.params,
+      metadata: {},
+    };
+
+    const orderId = sellOrder.hash();
+
+    logger.info("ElementTestnet", `Save ${orderId} to database`);
+
+    // Store order to database
+    const result = await orders.element.save([orderInfo]);
+    console.log("result", result);
+    // return;
+
+    await wait(10 * 1000);
+
+    const ordeStatus = await getOrder(orderId);
+    logger.info("ElementTestnet", `Order status ${JSON.stringify(ordeStatus)}`);
+
+    // Create matching buy order
+    const buyOrder = sellOrder.buildMatching();
+
+    // Fill order
+    const fillTx = await exchange.fillOrder(buyer, sellOrder, buyOrder);
+
+    logger.info("ElementTestnet", `Fill order=${orderId}, tx=${fillTx.hash}`);
+
+    await fillTx.wait();
+
+    logger.info("ElementTestnet", `Waiting... ${indexInterval}`);
+
+    await wait(indexInterval);
+
+    // Check order
+    const orderAfter = await getOrder(orderId);
+    logger.info("ElementTestnet", `Order status ${JSON.stringify(orderAfter)}`);
     expect(orderAfter?.fillability_status).toEqual("filled");
   });
 
