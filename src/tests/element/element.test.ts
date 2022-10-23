@@ -94,7 +94,7 @@ describe("ElementExchange", () => {
       metadata: {},
     });
 
-    console.log("orderInfo.order", orderInfo.order);
+    // console.log("orderInfo.order", orderInfo.order);
 
     await processOnChainData({
       orders: orders.map((info) => ({
@@ -151,7 +151,7 @@ describe("ElementExchange", () => {
     const events = await getEventsFromTx(tx);
     const result = await handleEvents(events);
 
-    console.log("result", result);
+    // console.log("result", result);
 
     const fillOrder = result.orderInfos?.filter((_) => _.id === orderInfo.orderHash);
 
@@ -224,7 +224,7 @@ describe("ElementExchange", () => {
     const tx = await baseProvider.getTransactionReceipt(allTx.v2.buyERC1155);
     const events = await getEventsFromTx(tx);
     const result = await handleEvents(events);
-    console.log("result", result);
+    // console.log("result", result);
     expect(result.orderInfos?.length).toEqual(1);
   });
 

@@ -365,7 +365,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
     }
   }
 
-  console.log("orderInfos", orderInfos);
+  // console.log("orderInfos", orderInfos);
   return {
     nonceCancelEvents,
     orderInfos,

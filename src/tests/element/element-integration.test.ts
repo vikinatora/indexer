@@ -2,20 +2,19 @@ import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 import { baseProvider } from "@/common/provider";
 import { wait } from "../utils/test";
-import { keccak256 } from "@ethersproject/solidity";
 import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 import { Wallet } from "@ethersproject/wallet";
-import { Element, Common } from "@reservoir0x/sdk";
+import { Element } from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { parseEther } from "@ethersproject/units";
 import * as orders from "@/orderbook/orders";
-import { ethers } from "ethers";
-import { idb } from "@/common/db";
+// import { ethers } from "ethers";
+// import { idb } from "@/common/db";
 import {
   testNFTAddr,
-  operator,
-  operator2,
+  // operator,
+  // operator2,
   operatorKey,
   operator2Key,
 } from "./__fixtures__/test-accounts";
@@ -83,12 +82,12 @@ describe("ElementTestnet", () => {
     const orderId = sellOrder.hash();
 
     // Store Order
-    const saveResults = await orders.element.save([orderInfo]);
+    await orders.element.save([orderInfo]);
 
-    console.log("saveResults", saveResults);
+    // console.log("saveResults", saveResults);
     await wait(10 * 1000);
 
-    const order = await getOrder(orderId);
+    // const order = await getOrder(orderId);
 
     // expect(order?.fillability_status).toEqual("fillable");
     // expect(order?.approval_status).toEqual("approved");
@@ -97,8 +96,8 @@ describe("ElementTestnet", () => {
     const buyOrder = sellOrder.buildMatching();
 
     const fillTx = await exchange.fillOrder(buyer, sellOrder, buyOrder);
-    const res = await fillTx.wait();
-    console.log("fillTx", res);
+    await fillTx.wait();
+    // console.log("fillTx", fillTx);
 
     await wait(indexInterval);
 
