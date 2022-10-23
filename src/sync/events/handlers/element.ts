@@ -43,6 +43,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
+      case "element-erc721-sell-order-filled-v2":
       case "element-erc721-sell-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args["maker"].toLowerCase();
@@ -127,6 +128,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
+      case "element-erc721-buy-order-filled-v2":
       case "element-erc721-buy-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         // const maker = args["maker"].toLowerCase();
@@ -191,6 +193,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
+      case "element-erc1155-sell-order-filled-v2":
       case "element-erc1155-sell-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args["maker"].toLowerCase();
@@ -275,6 +278,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
+      case "element-erc1155-buy-order-filled-v2":
       case "element-erc1155-buy-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args["maker"].toLowerCase();
@@ -361,6 +365,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
     }
   }
 
+  console.log("orderInfos", orderInfos);
   return {
     nonceCancelEvents,
     orderInfos,

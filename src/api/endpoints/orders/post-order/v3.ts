@@ -31,7 +31,7 @@ export const postOrderV3Options: RouteOptions = {
       order: Joi.object({
         kind: Joi.string()
           .lowercase()
-          .valid("opensea", "looks-rare", "zeroex-v4", "seaport", "x2y2", "universe")
+          .valid("opensea", "looks-rare", "zeroex-v4", "seaport", "x2y2", "universe", "element")
           .required(),
         data: Joi.object().required(),
       }),

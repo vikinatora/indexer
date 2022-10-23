@@ -44,6 +44,8 @@ export const save = async (
       const order = new Sdk.Element.Order(config.chainId, orderParams);
       const id = order.hash();
 
+      console.log("orderParams", orderParams);
+
       // order.expiry & 0xffffffff <= block.timestamp
       const expirationTime = BigNumber.from(order.params.expiry)
         .and(BigNumber.from("0xffffffff"))
@@ -54,6 +56,7 @@ export const save = async (
         id,
       });
       if (orderExists) {
+        console.log("orderExists");
         return results.push({
           id,
           status: "already-exists",
@@ -135,6 +138,7 @@ export const save = async (
         order.params.direction === Sdk.Element.Types.TradeDirection.BUY &&
         order.params.erc20Token !== Sdk.Common.Addresses.Weth[config.chainId]
       ) {
+        console.log("mismatch", Sdk.Common.Addresses.Weth[config.chainId]);
         return results.push({
           id,
           status: "unsupported-payment-token",
@@ -146,6 +150,7 @@ export const save = async (
         order.params.direction === Sdk.Element.Types.TradeDirection.SELL &&
         order.params.erc20Token !== Sdk.Element.Addresses.Eth[config.chainId]
       ) {
+        console.log("mismatch", Sdk.Element.Addresses.Eth[config.chainId]);
         return results.push({
           id,
           status: "unsupported-payment-token",

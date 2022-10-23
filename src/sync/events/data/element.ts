@@ -116,3 +116,100 @@ export const erc1155BuyOrderFilled: EventData = {
     )`,
   ]),
 };
+
+export const erc721SellOrderFilledV2: EventData = {
+  kind: "element-erc721-sell-order-filled-v2",
+  addresses: { [Element.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x9c248aa1a265aa616f707b979d57f4529bb63a4fc34dc7fc61fdddc18410f74e",
+  numTopics: 1,
+  abi: new Interface([
+    `event ERC721SellOrderFilled(
+      bytes32 orderHash,
+      address maker,
+      address taker,
+      uint256 nonce,
+      address erc20Token,
+      uint256 erc20TokenAmount,
+      (
+        address recipient,
+        uint256 amount
+      )[] fees,
+      address erc721Token,
+      uint256 erc721TokenId
+    )`,
+  ]),
+};
+
+export const erc721BuyOrderFilledV2: EventData = {
+  kind: "element-erc721-buy-order-filled-v2",
+  addresses: { [Element.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0xd90a5c60975c6ff8eafcf02088e7b50ae5d9e156a79206ba553df1c4fb4594c2",
+  numTopics: 1,
+  abi: new Interface([
+    `event ERC721BuyOrderFilled(
+        bytes32 orderHash,
+        address maker,
+        address taker,
+        uint256 nonce,
+        address erc20Token,
+        uint256 erc20TokenAmount,
+        (
+            address recipient,
+            uint256 amount
+        )[] fees,
+        address erc721Token,
+        uint256 erc721TokenId
+    )`,
+  ]),
+};
+
+export const erc1155BuyOrderFilledV2: EventData = {
+  kind: "element-erc1155-buy-order-filled-v2",
+  addresses: { [Element.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x105616901449a64554ca9246a5bbcaca973b40b3c0055e5070c6fa191618d9f3",
+  numTopics: 1,
+  abi: new Interface([
+    `event ERC1155BuyOrderFilled(
+        bytes32 orderHash,
+        address maker,
+        address taker,
+        uint256 nonce,
+        address erc20Token,
+        uint256 erc20FillAmount,
+        (
+            address recipient,
+            uint256 amount
+        )[] fees,
+        address erc1155Token,
+        uint256 erc1155TokenId,
+        uint128 erc1155FillAmount
+      )`,
+  ]),
+};
+
+export const erc1155SellOrderFilledV2: EventData = {
+  kind: "element-erc1155-sell-order-filled-v2",
+  addresses: { [Element.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0xfcde121a3f6a9b14a3ce266d61fc00940de86c4d8c1d733fe62d503ae5d99ff9",
+  numTopics: 1,
+  abi: new Interface([
+    `event ERC1155SellOrderFilled(
+        bytes32 orderHash,
+        address maker,
+        address taker,
+        uint256 nonce,
+        address erc20Token,
+        uint256 erc20FillAmount,
+        (
+            address recipient,
+            uint256 amount
+        )[] fees,
+        address erc1155Token,
+        uint256 erc1155TokenId,
+        uint128 erc1155FillAmount
+      )`,
+  ]),
+};
+
+// console.log("erc1155BuyOrderFilledV2", erc1155BuyOrderFilledV2.abi.getEventTopic("ERC1155BuyOrderFilled"))
+// console.log("erc1155SellOrderFilledV2", erc1155SellOrderFilledV2.abi.getEventTopic("ERC1155SellOrderFilled"))

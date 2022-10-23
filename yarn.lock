@@ -1581,13 +1581,13 @@
     ethers "^5.6.8"
     merkletreejs "0.2.31"
 
-"@reservoir0x/sdk@file:../core-fork/packages/sdk":
+"@reservoir0x/sdk@/Users/fun/Documents/ios/adbug/blockchain/reservoirprotocol/core-fork/packages/sdk":
   version "0.0.196"
   dependencies:
     ethers "^5.6.8"
     merkletreejs "0.2.31"
 
-"@reservoir0x/sdk@file:/Users/fun/Documents/ios/adbug/blockchain/reservoirprotocol/core-fork/packages/sdk":
+"@reservoir0x/sdk@file:../core-fork/packages/sdk":
   version "0.0.196"
   dependencies:
     ethers "^5.6.8"

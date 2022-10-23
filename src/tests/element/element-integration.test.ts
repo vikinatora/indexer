@@ -6,9 +6,10 @@ import { keccak256 } from "@ethersproject/solidity";
 import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 import { Wallet } from "@ethersproject/wallet";
-import { Zora } from "@reservoir0x/sdk";
+import { Element, Common } from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { parseEther } from "@ethersproject/units";
+import * as orders from "@/orderbook/orders";
 import { ethers } from "ethers";
 import { idb } from "@/common/db";
 import {
@@ -18,16 +19,22 @@ import {
   operatorKey,
   operator2Key,
 } from "./__fixtures__/test-accounts";
+
+import { setupNFTs } from "../utils/nft";
+import { getOrder } from "../utils/order";
+
 // import { toBuffer } from "@/common/utils";
 
 const operatorProvider = new Wallet(operatorKey, baseProvider);
 const operator2Provider = new Wallet(operator2Key, baseProvider);
 
-jest.setTimeout(600 * 1000);
+jest.setTimeout(1000 * 1000);
 
 describe("ElementTestnet", () => {
   const tokenId = 1;
   const chainId = config.chainId;
+  const seller = operatorProvider;
+  const buyer = operator2Provider;
   // test NFT contract
   const nftToken = new Contract(
     testNFTAddr,
@@ -41,76 +48,63 @@ describe("ElementTestnet", () => {
     ]),
     operatorProvider
   );
+  const operator = Element.Addresses.Exchange[config.chainId];
 
-  const indexInterval = 40 * 1000;
-  const orderId = keccak256(
-    ["string", "string", "uint256"],
-    ["zora-v3", `${testNFTAddr}`, `${tokenId}`]
-  );
+  const indexInterval = 60 * 1000;
 
-  test("create-order", async () => {
-    const seller = operatorProvider;
-    const balance = await nftToken.balanceOf(operator);
-    const currentOwner = await nftToken.ownerOf(tokenId);
-    // send back NFT
-    if (currentOwner === operator2) {
-      const backTx = await nftToken
-        .connect(operator2Provider)
-        .transferFrom(operator2Provider.address, operatorProvider.address, tokenId);
-      await backTx.wait();
-    }
+  beforeEach(async () => {
+    await setupNFTs(nftToken, seller, buyer, tokenId, operator);
+  });
 
-    if (balance.toString() === "0") {
-      const tx = await nftToken.safeMint(operator);
-      await tx.wait();
-    }
+  test("listAndSell", async () => {
+    const exchange = new Element.Exchange(chainId);
+    const builder = new Element.Builders.SingleToken(chainId);
+    const price = parseEther("0.001");
 
-    const exchange = new Zora.Exchange(chainId);
-    const moduleManager = new Zora.ModuleManager(chainId);
-
-    // Approve the exchange for escrowing.
-    const isApproved = await nftToken.isApprovedForAll(
-      seller.address,
-      Zora.Addresses.Erc721TransferHelper[chainId]
-    );
-
-    if (!isApproved) {
-      await moduleManager.setApprovalForModule(seller, Zora.Addresses.Exchange[chainId], true);
-      const tx = await nftToken.setApprovalForAll(
-        Zora.Addresses.Erc721TransferHelper[chainId],
-        true
-      );
-      await tx.wait();
-    }
-
-    const owner = await nftToken.ownerOf(tokenId);
-    expect(owner).toEqual(seller.address);
-
-    const price = parseEther("0.005");
-
-    // Create sell order.
-    const order = new Zora.Order(chainId, {
-      tokenContract: testNFTAddr,
-      tokenId,
-      askPrice: price.toString(),
-      askCurrency: ethers.constants.AddressZero,
-      sellerFundsRecipient: seller.address,
-      findersFeeBps: 0,
+    // Build Sell order
+    const sellOrder = builder.build({
+      direction: "sell",
+      maker: seller.address,
+      contract: nftToken.address,
+      tokenId: tokenId,
+      paymentToken: Element.Addresses.Eth[config.chainId],
+      price,
+      hashNonce: 0,
+      expiry: Math.floor(Date.now() / 1000) + 10000,
     });
 
-    const creatTx = await exchange.createOrder(seller, order);
-    await creatTx.wait();
+    await sellOrder.sign(seller);
+
+    const orderInfo: orders.element.OrderInfo = {
+      orderParams: sellOrder.params,
+      metadata: {},
+    };
+
+    const orderId = sellOrder.hash();
+
+    // Store Order
+    const saveResults = await orders.element.save([orderInfo]);
+
+    console.log("saveResults", saveResults);
+    await wait(10 * 1000);
+
+    const order = await getOrder(orderId);
+
+    // expect(order?.fillability_status).toEqual("fillable");
+    // expect(order?.approval_status).toEqual("approved");
+
+    // Create matching buy order
+    const buyOrder = sellOrder.buildMatching();
+
+    const fillTx = await exchange.fillOrder(buyer, sellOrder, buyOrder);
+    const res = await fillTx.wait();
+    console.log("fillTx", res);
 
     await wait(indexInterval);
 
-    const dbOrder = await idb.oneOrNone(
-      `SELECT fillability_status FROM "orders" "o" WHERE "o"."id" = $/id/`,
-      {
-        id: orderId,
-      }
-    );
+    const orderAfter = await getOrder(orderId);
 
-    expect(dbOrder?.fillability_status).toEqual("fillable");
+    expect(orderAfter?.fillability_status).toEqual("filled");
   });
 
   //   test("balance-change", async () => {
