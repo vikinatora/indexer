@@ -67,7 +67,7 @@ export class DailyVolume {
     startTime: number,
     ignoreInsertedRows = false
   ): Promise<boolean> {
-    logger.info("daily-volumes", `Calculating daily volumes for ${startTime}`);
+    logger.info("daily-volumes", `Calculating daily volumes. startTime=${startTime}`);
     // Don't recalculate if the day was already calculated
     if (!ignoreInsertedRows) {
       try {
@@ -139,7 +139,7 @@ export class DailyVolume {
       logger.error(
         "daily-volumes",
         JSON.stringify({
-          msg: `Error while trying to fetch the calculations for the daily volume`,
+          msg: `Error while trying to fetch the calculations for the daily volume. startTime=${startTime}`,
           timestamp: startTime,
           exception: e,
         })
@@ -202,7 +202,8 @@ export class DailyVolume {
               floor_sell_value = $/floor_sell_value/, 
               floor_sell_value_clean = $/floor_sell_value_clean/, 
               sales_count = $/sales_count/,
-              sales_count_clean = $/sales_count_clean/
+              sales_count_clean = $/sales_count_clean/,
+              updated_at = now()
             `,
           values: values,
         });
@@ -265,7 +266,7 @@ export class DailyVolume {
       logger.error(
         "daily-volumes",
         JSON.stringify({
-          msg: `Error while calculating previous day volumes`,
+          msg: `Error while calculating previous day volumes. date=${date}, day1Timestamp=${day1Timestamp}`,
           exception: e.message,
         })
       );
@@ -274,7 +275,7 @@ export class DailyVolume {
     if (!day1Results.length) {
       logger.error(
         "daily-volumes",
-        "No daily volumes found for the previous day, should be impossible"
+        `No daily volumes found for the previous day, should be impossible. date=${date}, day1Timestamp=${day1Timestamp}`
       );
 
       return false;
@@ -303,7 +304,7 @@ export class DailyVolume {
       logger.error(
         "daily-volumes",
         JSON.stringify({
-          msg: `Error while calculating 7 day daily volumes`,
+          msg: `Error while calculating 7 day daily volumes. date=${date}, day1Timestamp=${day7Timestamp}`,
           exception: e.message,
         })
       );
@@ -322,7 +323,7 @@ export class DailyVolume {
       logger.error(
         "daily-volumes",
         JSON.stringify({
-          msg: `Error while calculating 30 day daily volumes`,
+          msg: `Error while calculating 30 day daily volumes. date=${date}, day1Timestamp=${day30Timestamp}`,
           exception: e.message,
         })
       );
@@ -341,7 +342,7 @@ export class DailyVolume {
       logger.error(
         "daily-volumes",
         JSON.stringify({
-          msg: `Error while calculating all time daily volumes`,
+          msg: `Error while calculating all time daily volumes. date=${date}`,
           exception: e.message,
         })
       );
@@ -354,7 +355,7 @@ export class DailyVolume {
     if (!mergedArr.length) {
       logger.error(
         "daily-volumes",
-        "No daily volumes found for 1, 7 and 30 days. Should be impossible"
+        `No daily volumes found for 1, 7 and 30 days. Should be impossible. date=${date}`
       );
 
       return false;
@@ -387,7 +388,7 @@ export class DailyVolume {
       logger.error(
         "daily-volumes",
         JSON.stringify({
-          msg: `Error while calculating the daily volumes for insertion into the collections table`,
+          msg: `Error while calculating the daily volumes for insertion into the collections table. date=${date}`,
           exception: e.message,
         })
       );
@@ -418,7 +419,7 @@ export class DailyVolume {
       logger.error(
         "daily-volumes",
         JSON.stringify({
-          msg: `Error while calculating volume changes`,
+          msg: `Error while calculating volume changes. date=${date}`,
           exception: e.message,
         })
       );
@@ -472,7 +473,7 @@ export class DailyVolume {
     logger.info(
       "daily-volumes",
       JSON.stringify({
-        msg: `running calculateVolumeChange for period ${days}, useCleanValues: ${useCleanValues}`,
+        msg: `running calculateVolumeChange. date=${date}, days=${days}, currentPeriod=${currentPeriod}, previousPeriod=${previousPeriod}, useCleanValues=${useCleanValues}`,
       })
     );
 
@@ -498,7 +499,7 @@ export class DailyVolume {
       logger.error(
         "daily-volumes",
         JSON.stringify({
-          msg: `Error while calculating the previous period volume`,
+          msg: `Error while calculating the previous period volume. date=${date}, days=${days}, currentPeriod=${currentPeriod}, previousPeriod=${previousPeriod}, useCleanValues=${useCleanValues}`,
           exception: e.message,
         })
       );
@@ -510,7 +511,7 @@ export class DailyVolume {
       logger.error(
         "daily-volumes",
         JSON.stringify({
-          msg: `No previous period data found for day${days} with timestamps between ${previousPeriod} and ${currentPeriod}`,
+          msg: `No previous period data found for day${days} with timestamps between ${previousPeriod} and ${currentPeriod}. date=${date}`,
         })
       );
 
@@ -535,7 +536,7 @@ export class DailyVolume {
       logger.error(
         "daily-volumes",
         JSON.stringify({
-          msg: `Error while updating the previous period volume in the collections table`,
+          msg: `Error while updating the previous period volume in the collections table. date=${date}, days=${days}, currentPeriod=${currentPeriod}, previousPeriod=${previousPeriod}, useCleanValues=${useCleanValues}`,
           exception: e.message,
         })
       );
@@ -545,7 +546,7 @@ export class DailyVolume {
     logger.info(
       "daily-volumes",
       JSON.stringify({
-        msg: `Finished calculateVolumeChange for period ${days}`,
+        msg: `Finished calculateVolumeChange. date=${date}, days=${days}, currentPeriod=${currentPeriod}, previousPeriod=${previousPeriod}, useCleanValues=${useCleanValues}`,
       })
     );
 
