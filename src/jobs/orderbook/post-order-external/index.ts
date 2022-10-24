@@ -202,6 +202,13 @@ const postOrder = async (
         orderData as Sdk.Seaport.Types.OrderComponents
       );
 
+      logger.info(
+        QUEUE_NAME,
+        `Post Order Seaport. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+          orderData
+        )}, side=${order.getInfo()?.side}, kind=${order.params.kind}`
+      );
+
       if (
         order.getInfo()?.side === "buy" &&
         ["contract-wide", "token-list"].includes(order.params.kind!)
@@ -235,8 +242,21 @@ const postOrder = async (
           orderbookApiKey
         );
 
-        order.params.consideration[0] =
-          buildCollectionOfferParams.partialParameters.consideration[0];
+        logger.info(
+          QUEUE_NAME,
+          `Post Order Seaport consideration. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+            orderData
+          )}, side=${order.getInfo()?.side}, kind=${
+            order.params.kind
+          }, consideration=${JSON.stringify(
+            order.params.consideration[0]
+          )}, consideration=${JSON.stringify(
+            buildCollectionOfferParams.partialParameters.consideration[0]
+          )}`
+        );
+
+        order.params.consideration[0].identifierOrCriteria =
+          buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria;
 
         return OpenSeaApi.postCollectionOffer(order, collectionSlug, orderbookApiKey);
       }
