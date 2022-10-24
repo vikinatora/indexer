@@ -202,7 +202,7 @@ describe("ElementTestnet", () => {
     expect(orderAfter?.fillability_status).toEqual("filled");
   });
 
-  test("buyERC1155", async () => {
+  test("sellERC1155", async () => {
     await setupERC1155NFTs(erc1155, seller, buyer, tokenId, operator);
     const exchange = new Element.Exchange(chainId);
     const builder = new Element.Builders.SingleToken(chainId);
@@ -234,8 +234,8 @@ describe("ElementTestnet", () => {
 
     // Store order to database
     const result = await orders.element.save([orderInfo]);
-    console.log("result", result);
-    // return;
+
+    logger.info("ElementTestnet", `Save result ${JSON.stringify(result)}`);
 
     await wait(10 * 1000);
 
@@ -247,6 +247,76 @@ describe("ElementTestnet", () => {
 
     // Fill order
     const fillTx = await exchange.fillOrder(buyer, sellOrder, buyOrder);
+
+    logger.info("ElementTestnet", `Fill order=${orderId}, tx=${fillTx.hash}`);
+
+    await fillTx.wait();
+
+    logger.info("ElementTestnet", `Waiting... ${indexInterval}`);
+
+    await wait(indexInterval);
+
+    // Check order
+    const orderAfter = await getOrder(orderId);
+    logger.info("ElementTestnet", `Order status ${JSON.stringify(orderAfter)}`);
+    expect(orderAfter?.fillability_status).toEqual("filled");
+  });
+
+  test("buyERC1155", async () => {
+    await setupERC1155NFTs(erc1155, seller, buyer, tokenId, operator);
+    const exchange = new Element.Exchange(chainId);
+    const builder = new Element.Builders.SingleToken(chainId);
+    const price = parseEther("0.001");
+
+    const weth = new Common.Helpers.Weth(baseProvider, chainId);
+
+    // Mint weth to buyer
+    await weth.deposit(buyer, price);
+
+    // Approve the exchange contract for the buyer
+    const approveTx = await weth.approve(buyer, Element.Addresses.Exchange[chainId]);
+
+    await approveTx.wait();
+
+    // Build Sell order
+    const buyOrder = builder.build({
+      direction: "buy",
+      maker: buyer.address,
+      contract: erc1155.address,
+      tokenId: tokenId,
+      amount: 1,
+      paymentToken: Common.Addresses.Weth[chainId],
+      price,
+      hashNonce: 0,
+      expiry: Math.floor(Date.now() / 1000) + 10000,
+    });
+
+    await buyOrder.sign(buyer);
+
+    const orderInfo: orders.element.OrderInfo = {
+      orderParams: buyOrder.params,
+      metadata: {},
+    };
+
+    const orderId = buyOrder.hash();
+
+    logger.info("ElementTestnet", `Save ${orderId} to database`);
+
+    // Store order to database
+    const result = await orders.element.save([orderInfo]);
+
+    logger.info("ElementTestnet", `Save result ${JSON.stringify(result)}`);
+
+    await wait(10 * 1000);
+
+    const ordeStatus = await getOrder(orderId);
+    logger.info("ElementTestnet", `Order status ${JSON.stringify(ordeStatus)}`);
+
+    // Create matching sell order
+    const sellOrder = buyOrder.buildMatching({ amount: 1 });
+
+    // Fill order
+    const fillTx = await exchange.fillOrder(seller, buyOrder, sellOrder);
 
     logger.info("ElementTestnet", `Fill order=${orderId}, tx=${fillTx.hash}`);
 

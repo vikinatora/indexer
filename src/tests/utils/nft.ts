@@ -52,10 +52,13 @@ export async function setupERC1155NFTs(
     nft.balanceOf(taker.address, tokenId),
   ]);
 
-  console.log({
-    sellerTokenAmount: sellerTokenAmount.toString(),
-    takerTokenAmount: takerTokenAmount.toString(),
-  });
+  logger.info(
+    "setupERC1155NFTs",
+    `balance ${JSON.stringify({
+      sellerTokenAmount: sellerTokenAmount.toString(),
+      takerTokenAmount: takerTokenAmount.toString(),
+    })}`
+  );
 
   const sellerEmpty = sellerTokenAmount.toString() === "0";
   const takerEmpty = takerTokenAmount.toString() === "0";
