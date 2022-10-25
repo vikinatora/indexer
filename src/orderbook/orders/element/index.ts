@@ -1,4 +1,3 @@
-import { BigNumber } from "@ethersproject/bignumber";
 import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
@@ -44,9 +43,7 @@ export const save = async (
       const id = order.hash();
 
       // order.expiry & 0xffffffff <= block.timestamp
-      const expirationTime = BigNumber.from(order.params.expiry)
-        .and(BigNumber.from("0xffffffff"))
-        .toString();
+      const expirationTime = bn(order.params.expiry).and(bn("0xffffffff")).toString();
 
       // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(`SELECT 1 FROM orders WHERE orders.id = $/id/`, {
