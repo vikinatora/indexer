@@ -44,6 +44,7 @@ function generateUpdateQuery(bulkCancelValues: DbEvent[], acrossAll: boolean) {
     { table: "bulk_cancel_events" }
   );
 
+  // For Element there has two kind-of nonce, set acrossAll `true` to cancel all maker's related orders
   // Atomically insert the bulk cancel events and update order statuses
   return `
     WITH "x" AS (
