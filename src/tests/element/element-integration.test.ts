@@ -348,7 +348,7 @@ describe("ElementTestnet", () => {
     expect(orderAfter?.fillability_status).toEqual("filled");
   });
 
-  test("sellERC721-cancel", async () => {
+  test("cancelSellERC721", async () => {
     await setupNFTs(nftToken, seller, buyer, tokenId, operator);
 
     const exchange = new Element.Exchange(chainId);
@@ -421,7 +421,7 @@ describe("ElementTestnet", () => {
     expect(orderAfter?.fillability_status).toEqual("cancelled");
   });
 
-  test("sellERC1155-cancel", async () => {
+  test("cancelSellERC1155", async () => {
     await setupERC1155NFTs(erc1155, seller, buyer, tokenId, operator);
     const exchange = new Element.Exchange(chainId);
     const builder = new Element.Builders.SingleToken(chainId);

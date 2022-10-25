@@ -1,7 +1,15 @@
 # Element Integration Tests
-``` shell
+
+``` bash
+# start indexer
 yarn start
 ```
+
+```bash
+# run tests
+yarn test element-integration.test.ts --runInBand
+```
+
 ### .env
 ```
 # For Testing
@@ -43,10 +51,10 @@ yarn test element-integration.test.ts -t buyERC1155
 
 ### sellERC721-cancel
 ```shell
-yarn test element-integration.test.ts -t sellERC721-cancel
+yarn test element-integration.test.ts -t cancelSellERC721
 ```
 
 ### sellERC1155-cancel
 ```shell
-yarn test element-integration.test.ts -t sellERC1155-cancel
+yarn test element-integration.test.ts -t cancelSellERC1155
 ```
