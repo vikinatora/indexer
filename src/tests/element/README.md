@@ -13,7 +13,7 @@ TEST_ACCOUNT2=address
 
 - Start indexer
 - Run tests
-- Create order then sore to Database
+- Create order and store to the database
 - Make on-chain transaction(cancel or increase nonce)
 - And waiting indexer to index the state change.
 - Then check order's status is expected
