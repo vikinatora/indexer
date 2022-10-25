@@ -162,7 +162,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       case "element-erc721-buy-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args["maker"].toLowerCase();
-        const taker = args["taker"].toLowerCase();
+        let taker = args["taker"].toLowerCase();
         const erc20Token = args["erc20Token"].toLowerCase();
         const erc20TokenAmount = args["erc20TokenAmount"].toString();
         const erc721Token = args["erc721Token"].toLowerCase();
@@ -176,8 +176,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams.txHash,
           orderKind
         );
+
         if (attributionData.taker) {
-          // taker = attributionData.taker;
+          taker = attributionData.taker;
         }
 
         // Handle: prices

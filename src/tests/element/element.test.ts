@@ -57,9 +57,6 @@ async function extractSellOrder(
     isValidSignature = false;
   }
 
-  // console.log("buyOrder.params", buyOrder.params);
-  // console.log("order", order);
-
   return {
     isValidSignature,
     order: buyOrder.params,
@@ -100,8 +97,6 @@ describe("ElementExchange", () => {
       orderParams: orderInfo.order,
       metadata: {},
     });
-
-    // console.log("orderInfo.order", orderInfo.order);
 
     await processOnChainData({
       orders: orders.map((info) => ({
@@ -158,8 +153,6 @@ describe("ElementExchange", () => {
     const events = await getEventsFromTx(tx);
     const result = await handleEvents(events);
 
-    // console.log("result", result);
-
     const fillOrder = result.orderInfos?.filter((_) => _.id === orderInfo.orderHash);
 
     expect(fillOrder).not.toBe(null);
@@ -182,8 +175,6 @@ describe("ElementExchange", () => {
     const orderInfo = await extractSellOrder(chainId, exchange, transaction, false);
     // const orderId = orderInfo.orderHash;
 
-    // console.log("orderId", orderId, orderInfo)
-
     // Store orders
     const orders: OrderInfo[] = [];
     orders.push({
@@ -205,25 +196,19 @@ describe("ElementExchange", () => {
     const events = await getEventsFromTx(tx);
     const result = await handleEvents(events);
 
-    // console.log("result", result);
-
     expect(result.orderInfos?.length).toEqual(1);
     expect(result.fillEventsPartial?.length).toEqual(1);
     expect(result.fillInfos?.length).toEqual(1);
 
     await processOnChainData(result);
 
-    await wait(20 * 1000);
-
-    // const order = await getOrder(orderId);
-    // expect(order?.fillability_status).toEqual("filled");
+    // await wait(20 * 1000);
   });
 
   test("sellERC721", async () => {
     const tx = await baseProvider.getTransactionReceipt(allTx.v2.sellERC721);
     const events = await getEventsFromTx(tx);
     const result = await handleEvents(events);
-    // console.log("result", result)
     expect(result.orderInfos?.length).toEqual(1);
   });
 
@@ -231,7 +216,6 @@ describe("ElementExchange", () => {
     const tx = await baseProvider.getTransactionReceipt(allTx.v2.buyERC1155);
     const events = await getEventsFromTx(tx);
     const result = await handleEvents(events);
-    // console.log("result", result);
     expect(result.orderInfos?.length).toEqual(1);
   });
 

@@ -210,6 +210,3 @@ export const erc1155SellOrderFilledV2: EventData = {
       )`,
   ]),
 };
-
-// console.log("erc1155BuyOrderFilledV2", erc1155BuyOrderFilledV2.abi.getEventTopic("ERC1155BuyOrderFilled"))
-// console.log("erc1155SellOrderFilledV2", erc1155SellOrderFilledV2.abi.getEventTopic("ERC1155SellOrderFilled"))

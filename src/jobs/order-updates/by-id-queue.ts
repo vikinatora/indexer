@@ -42,7 +42,6 @@ if (config.doBackgroundWork) {
       const { id, trigger } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
 
-      // console.log("job", job.data)
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let order: any;

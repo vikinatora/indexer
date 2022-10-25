@@ -7,7 +7,7 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-// import * as arweaveRelay from "@/jobs/arweave-relay";
+import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
@@ -67,57 +67,6 @@ export const save = async (
           id,
           status: "unknown-order-kind",
         });
-      }
-
-      // Check: order has unique nonce
-      if (kind === "erc1155") {
-        // For erc1155, enforce uniqueness of maker/nonce/contract/price
-        const nonceExists = await idb.oneOrNone(
-          `
-            SELECT 1 FROM orders
-            WHERE orders.kind = 'element-erc1155'
-              AND orders.maker = $/maker/
-              AND orders.nonce = $/nonce/
-              AND orders.contract = $/contract/
-              AND (orders.raw_data ->> 'erc20TokenAmount')::NUMERIC / (orders.raw_data ->> 'nftAmount')::NUMERIC = $/price/
-          `,
-          {
-            maker: toBuffer(order.params.maker),
-            nonce: order.params.nonce,
-            contract: toBuffer(order.params.nft),
-            price: bn(order.params.erc20TokenAmount).div(order.params.nftAmount!).toString(),
-          }
-        );
-        if (nonceExists) {
-          return results.push({
-            id,
-            status: "duplicated-nonce",
-          });
-        }
-      } else {
-        // For erc721, enforce uniqueness of maker/nonce/contract/price
-        const nonceExists = await idb.oneOrNone(
-          `
-            SELECT 1 FROM orders
-            WHERE orders.kind = 'element-erc721'
-              AND orders.maker = $/maker/
-              AND orders.nonce = $/nonce/
-              AND orders.contract = $/contract/
-              AND (orders.raw_data ->> 'erc20TokenAmount')::NUMERIC = $/price/
-          `,
-          {
-            maker: toBuffer(order.params.maker),
-            nonce: order.params.nonce,
-            contract: toBuffer(order.params.nft),
-            price: order.params.erc20TokenAmount,
-          }
-        );
-        if (nonceExists) {
-          return results.push({
-            id,
-            status: "duplicated-nonce",
-          });
-        }
       }
 
       const currentTime = now();
@@ -233,50 +182,6 @@ export const save = async (
 
           break;
         }
-
-        case "token-range": {
-          const typedInfo = info as typeof info & {
-            startTokenId: BigNumber;
-            endTokenId: BigNumber;
-          };
-          const startTokenId = typedInfo.startTokenId.toString();
-          const endTokenId = typedInfo.endTokenId.toString();
-
-          if (startTokenId && endTokenId) {
-            [{ id: tokenSetId }] = await tokenSet.tokenRange.save([
-              {
-                id: `range:${order.params.nft}:${startTokenId}:${endTokenId}`,
-                schemaHash,
-                contract: order.params.nft,
-                startTokenId,
-                endTokenId,
-              },
-            ]);
-          }
-
-          break;
-        }
-
-        case "token-list-bit-vector":
-        case "token-list-packed-list": {
-          const typedInfo = info as typeof info & {
-            tokenIds: BigNumberish[];
-          };
-          const tokenIds = typedInfo.tokenIds;
-
-          const merkleRoot = generateMerkleTree(tokenIds);
-          if (merkleRoot) {
-            [{ id: tokenSetId }] = await tokenSet.tokenList.save([
-              {
-                id: `list:${order.params.nft}:${merkleRoot.getHexRoot()}`,
-                schemaHash,
-                schema: metadata.schema,
-              },
-            ]);
-          }
-
-          break;
-        }
       }
 
       if (!tokenSetId) {
@@ -288,8 +193,6 @@ export const save = async (
 
       // Handle: fees
       const feeAmount = order.getFeeAmount();
-
-      // const timestamp = BigNumber.from(order.params.expiry).and(BigNumber.from("0xffffffff")).toString();
 
       const side = order.params.direction === Sdk.Element.Types.TradeDirection.BUY ? "buy" : "sell";
 
@@ -356,7 +259,7 @@ export const save = async (
         currency_price: price.toString(),
         currency_value: value.toString(),
         needs_conversion: null,
-        quantity_remaining: order.params.nftAmount,
+        quantity_remaining: order.params.nftAmount ?? "1",
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.nonce,
         source_id_int: source?.id,
@@ -446,9 +349,9 @@ export const save = async (
         )
     );
 
-    // if (relayToArweave) {
-    //   await arweaveRelay.addPendingOrdersZeroExV4(arweaveData);
-    // }
+    if (relayToArweave) {
+      await arweaveRelay.addPendingOrdersElement(arweaveData);
+    }
   }
 
   return results;
