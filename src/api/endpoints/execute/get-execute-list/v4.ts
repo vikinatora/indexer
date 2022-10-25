@@ -33,10 +33,6 @@ import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 import * as universeSellToken from "@/orderbook/orders/universe/build/sell/token";
 import * as universeCheck from "@/orderbook/orders/universe/check";
 
-// Element
-import * as elementSellToken from "@/orderbook/orders/element/build/sell/token";
-import * as elementCheck from "@/orderbook/orders/element/check";
-
 const version = "v4";
 
 export const getExecuteListV4Options: RouteOptions = {
@@ -512,80 +508,6 @@ export const getExecuteListV4Options: RouteOptions = {
                       kind: "x2y2",
                       data: {
                         ...order,
-                      },
-                    },
-                    orderbook: params.orderbook,
-                    source,
-                  },
-                },
-              },
-              orderIndex: i,
-            });
-
-            // Go on with the next listing
-            continue;
-          }
-
-          case "element": {
-            if (!["reservoir"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
-            }
-
-            const order = await elementSellToken.build({
-              ...params,
-              maker,
-              contract,
-              tokenId,
-            });
-            if (!order) {
-              throw Boom.internal("Failed to generate order");
-            }
-
-            // Will be set if an approval is needed before listing
-            let approvalTx: TxData | undefined;
-
-            // Check the order's fillability.
-            try {
-              await elementCheck.offChainCheck(order, { onChainApprovalRecheck: true });
-            } catch (error: any) {
-              switch (error.message) {
-                case "no-balance-no-approval":
-                case "no-balance": {
-                  // We cannot do anything if the user doesn't own the listed token
-                  throw Boom.badData("Maker does not own the listed token");
-                }
-
-                case "no-approval": {
-                  // Generate an approval transaction
-                  const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";
-                  approvalTx = (
-                    kind === "erc721"
-                      ? new Sdk.Common.Helpers.Erc721(baseProvider, order.params.nft)
-                      : new Sdk.Common.Helpers.Erc1155(baseProvider, order.params.nft)
-                  ).approveTransaction(maker, Sdk.ZeroExV4.Addresses.Exchange[config.chainId]);
-
-                  break;
-                }
-              }
-            }
-
-            steps[0].items.push({
-              status: approvalTx ? "incomplete" : "complete",
-              data: approvalTx,
-              orderIndex: i,
-            });
-            steps[1].items.push({
-              status: "incomplete",
-              data: {
-                sign: order.getSignatureData(),
-                post: {
-                  endpoint: "/order/v3",
-                  method: "POST",
-                  body: {
-                    order: {
-                      kind: "zeroex-v4",
-                      data: {
-                        ...order.params,
                       },
                     },
                     orderbook: params.orderbook,

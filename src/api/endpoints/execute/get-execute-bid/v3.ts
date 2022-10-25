@@ -31,11 +31,6 @@ import * as zeroExV4BuyAttribute from "@/orderbook/orders/zeroex-v4/build/buy/at
 import * as zeroExV4BuyToken from "@/orderbook/orders/zeroex-v4/build/buy/token";
 import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/collection";
 
-// Element
-import * as elementBuyAttribute from "@/orderbook/orders/element/build/buy/attribute";
-import * as elementBuyToken from "@/orderbook/orders/element/build/buy/token";
-import * as elementBuyCollection from "@/orderbook/orders/element/build/buy/collection";
-
 const version = "v3";
 
 export const getExecuteBidV3Options: RouteOptions = {
@@ -611,116 +606,6 @@ export const getExecuteBidV3Options: RouteOptions = {
                     tokenSetId,
                     collection:
                       collection && !attributeKey && !attributeValue ? collection : undefined,
-                    orderbook: params.orderbook,
-                    source,
-                  },
-                },
-              },
-              orderIndex: i,
-            });
-
-            // Go on with the next bid
-            continue;
-          }
-
-          case "element": {
-            if (!["reservoir"].includes(params.orderbook)) {
-              throw Boom.badRequest("Unsupported orderbook");
-            }
-
-            // Make sure the fee information is correctly typed
-            if (params.fee && !Array.isArray(params.fee)) {
-              params.fee = [params.fee];
-            }
-            if (params.feeRecipient && !Array.isArray(params.feeRecipient)) {
-              params.feeRecipient = [params.feeRecipient];
-            }
-            if (params.fee?.length !== params.feeRecipient?.length) {
-              throw Boom.badRequest("Invalid fee information");
-            }
-
-            let order: Sdk.Element.Order | undefined;
-            if (token) {
-              const [contract, tokenId] = token.split(":");
-              order = await elementBuyToken.build({
-                ...params,
-                maker,
-                contract,
-                tokenId,
-              });
-            } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
-              order = await elementBuyAttribute.build({
-                ...params,
-                maker,
-                collection,
-                attributes: [
-                  {
-                    key: attributeKey,
-                    value: attributeValue,
-                  },
-                ],
-              });
-            } else if (collection) {
-              order = await elementBuyCollection.build({
-                ...params,
-                maker,
-                collection,
-              });
-            }
-
-            if (!order) {
-              throw Boom.internal("Failed to generate order");
-            }
-
-            // Check the maker's approval
-            let approvalTx: TxData | undefined;
-            const wethApproval = await weth.getAllowance(
-              maker,
-              Sdk.ZeroExV4.Addresses.Exchange[config.chainId]
-            );
-            if (bn(wethApproval).lt(bn(order.params.erc20TokenAmount).add(order.getFeeAmount()))) {
-              approvalTx = weth.approveTransaction(
-                maker,
-                Sdk.ZeroExV4.Addresses.Exchange[config.chainId]
-              );
-            }
-
-            steps[0].items.push({
-              status: !wrapEthTx ? "complete" : "incomplete",
-              data: wrapEthTx,
-              orderIndex: i,
-            });
-            steps[1].items.push({
-              status: !approvalTx ? "complete" : "incomplete",
-              data: approvalTx,
-              orderIndex: i,
-            });
-            steps[2].items.push({
-              status: "incomplete",
-              data: {
-                sign: order.getSignatureData(),
-                post: {
-                  endpoint: "/order/v3",
-                  method: "POST",
-                  body: {
-                    order: {
-                      kind: "zeroex-v4",
-                      data: {
-                        ...order.params,
-                      },
-                    },
-                    tokenSetId,
-                    attribute:
-                      collection && attributeKey && attributeValue
-                        ? {
-                            collection,
-                            key: attributeKey,
-                            value: attributeValue,
-                          }
-                        : undefined,
-                    collection:
-                      collection && !attributeKey && !attributeValue ? collection : undefined,
-                    isNonFlagged: params.excludeFlaggedTokens,
                     orderbook: params.orderbook,
                     source,
                   },

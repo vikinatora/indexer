@@ -1587,9 +1587,9 @@
     ethers "^5.6.8"
     merkletreejs "0.2.31"
 
-"@reservoir0x/sdk@0.0.203":
+"@reservoir0x/sdk@^0.0.205":
   version "0.0.203"
-  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.203.tgz#d288438a9dd506302003d65b7474267299f7dd47"
+  resolved "https://registry.npmjs.org/@reservoir0x/sdk/-/sdk-0.0.203.tgz#d288438a9dd506302003d65b7474267299f7dd47"
   integrity sha512-y3piEPllfrgAscOdRdp61BnUGFQUlk4Zd/89HwjYXclvUZP/7XBs55VNBQStCxSy5Crdnik+AG5q0E4hD14A9A==
   dependencies:
     ethers "^5.6.8"

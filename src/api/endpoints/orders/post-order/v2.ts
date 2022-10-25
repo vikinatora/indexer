@@ -11,7 +11,7 @@ import { config } from "@/config/index";
 import * as orders from "@/orderbook/orders";
 
 import * as postOrderExternal from "@/jobs/orderbook/post-order-external";
-
+f;
 const version = "v2";
 
 export const postOrderV2Options: RouteOptions = {
@@ -32,7 +32,7 @@ export const postOrderV2Options: RouteOptions = {
       order: Joi.object({
         kind: Joi.string()
           .lowercase()
-          .valid("opensea", "looks-rare", "zeroex-v4", "seaport", "x2y2", "element")
+          .valid("opensea", "looks-rare", "zeroex-v4", "seaport", "x2y2")
           .required(),
         data: Joi.object().required(),
       }),
@@ -275,28 +275,6 @@ export const postOrderV2Options: RouteOptions = {
           }
 
           return { message: "Success", orderId: result.id };
-        }
-
-        case "element": {
-          if (orderbook !== "reservoir") {
-            throw new Error("Unsupported orderbook");
-          }
-
-          const orderInfo: orders.element.OrderInfo = {
-            orderParams: order.data,
-            metadata: {
-              schema,
-              source,
-            },
-          };
-          const [result] = await orders.element.save([orderInfo]);
-          if (result.status === "success") {
-            return { message: "Success", orderId: result.id };
-          } else {
-            const error = Boom.badRequest(result.status);
-            error.output.payload.orderId = result.id;
-            throw error;
-          }
         }
       }
 
