@@ -13,7 +13,6 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import _ from "lodash";
 import { Assets } from "@/utils/assets";
 
 const version = "v1";
@@ -41,8 +40,11 @@ export const getUserTopBidsV1Options: RouteOptions = {
         Joi.string().lowercase(),
         Joi.array().items(Joi.string().lowercase())
       ).description(
-        "Filter to a particular collections. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        "Filter to one or more collections. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
       ),
+      community: Joi.string()
+        .lowercase()
+        .description("Filter to a particular community. Example: `artblocks`"),
       optimizeCheckoutURL: Joi.boolean()
         .default(false)
         .description(
@@ -141,9 +143,10 @@ export const getUserTopBidsV1Options: RouteOptions = {
   handler: async (request: Request) => {
     const params = request.params as any;
     const query = request.query as any;
-    let continuationFilter = "";
     let collectionFilter = "";
+    let communityFilter = "";
     let sortField = "top_bid_value";
+    let offset = 0;
 
     // Set the user value for the query
     (query as any).user = toBuffer(params.user);
@@ -151,41 +154,19 @@ export const getUserTopBidsV1Options: RouteOptions = {
     switch (query.sortBy) {
       case "dateCreated":
         sortField = "order_created_at";
-
-        if (query.continuation) {
-          const contArr = splitContinuation(query.continuation)[0].split("_");
-
-          const sign = query.sortDirection == "desc" ? "<" : ">";
-          query.contColumn = Number(contArr[0]);
-          query.contTokenId = contArr[1];
-          continuationFilter = `AND (extract(epoch from order_created_at) * 1000000, t.token_id) ${sign} ($/contColumn/, $/contTokenId/)`;
-        }
         break;
 
       case "orderExpiry":
         sortField = "top_bid_valid_until";
-
-        if (query.continuation) {
-          const contArr = splitContinuation(query.continuation)[0].split("_");
-
-          const sign = query.sortDirection == "desc" ? "<" : ">";
-          query.contColumn = Number(contArr[0]);
-          query.contTokenId = contArr[1];
-          continuationFilter = `AND (top_bid_valid_until, t.token_id) ${sign} ($/contColumn/, $/contTokenId/)`;
-        }
         break;
 
       case "topBidValue":
       default:
-        if (query.continuation) {
-          const contArr = splitContinuation(query.continuation)[0].split("_");
-
-          const sign = query.sortDirection == "desc" ? "<" : ">";
-          query.contColumn = Number(contArr[0]);
-          query.contTokenId = contArr[1];
-          continuationFilter = `AND (top_bid_value, t.token_id) ${sign} ($/contColumn/, $/contTokenId/)`;
-        }
         break;
+    }
+
+    if (query.continuation) {
+      offset = Number(splitContinuation(query.continuation));
     }
 
     if (query.collection) {
@@ -194,6 +175,10 @@ export const getUserTopBidsV1Options: RouteOptions = {
       } else {
         collectionFilter = `AND id = $/collection/`;
       }
+    }
+
+    if (query.community) {
+      communityFilter = `AND community = $/community/`;
     }
 
     try {
@@ -293,17 +278,17 @@ export const getUserTopBidsV1Options: RouteOptions = {
             WHERE t.contract = nb.contract
             AND t.token_id = nb.token_id
         ) t ON TRUE
-        ${query.collection ? "" : "LEFT"} JOIN LATERAL (
+        ${query.collection || query.community ? "" : "LEFT"} JOIN LATERAL (
             SELECT id AS "collection_id", name AS "collection_name", metadata AS "collection_metadata", floor_sell_value AS "collection_floor_sell_value"
             FROM collections c
             WHERE id = t.collection_id
+            ${communityFilter}
             ${collectionFilter}
         ) c ON TRUE
         WHERE owner = $/user/
         AND amount > 0
-        ${continuationFilter}
-        ORDER BY ${sortField} ${query.sortDirection}, token_id
-        LIMIT $/limit/
+        ORDER BY ${sortField} ${query.sortDirection}, token_id ${query.sortDirection}
+        OFFSET ${offset} LIMIT $/limit/
       `;
 
       const sources = await Sources.getInstance();
@@ -360,25 +345,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
 
       let continuation: string | null = null;
       if (bids.length >= query.limit) {
-        const lastBid = _.last(bids);
-        if (lastBid) {
-          switch (query.sortBy) {
-            case "dateCreated":
-              continuation = lastBid.order_created_at_micro;
-              break;
-
-            case "orderExpiry":
-              continuation = lastBid.top_bid_valid_until;
-              break;
-
-            case "topBidValue":
-            default:
-              continuation = lastBid.top_bid_value;
-              break;
-          }
-
-          continuation += "_" + lastBid.token_id;
-        }
+        continuation = offset + query.limit;
       }
 
       return {

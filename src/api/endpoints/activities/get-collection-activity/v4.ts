@@ -6,16 +6,16 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { buildContinuation, formatEth, regex, splitContinuation } from "@/common/utils";
+import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
-import { UserActivities } from "@/models/user-activities";
 import { Sources } from "@/models/sources";
 
-const version = "v3";
+const version = "v4";
 
-export const getUserActivityV3Options: RouteOptions = {
-  description: "Users activity",
-  notes: "This API can be used to build a feed for a user",
-  tags: ["api", "x-deprecated"],
+export const getCollectionActivityV4Options: RouteOptions = {
+  description: "Collection activity",
+  notes: "This API can be used to build a feed for a collection",
+  tags: ["api", "Activity"],
   plugins: {
     "hapi-swagger": {
       order: 1,
@@ -23,29 +23,29 @@ export const getUserActivityV3Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      users: Joi.alternatives()
-        .try(
-          Joi.array()
-            .items(Joi.string().lowercase().pattern(regex.address))
-            .min(1)
-            .max(50)
-            .description(
-              "Array of users addresses. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-            ),
-          Joi.string()
-            .lowercase()
-            .pattern(regex.address)
-            .description(
-              "Array of users addresses. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-            )
-        )
-        .required(),
+      collection: Joi.string()
+        .lowercase()
+        .description(
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
+      collectionsSetId: Joi.string()
+        .lowercase()
+        .description("Filter to a particular collection set."),
+      community: Joi.string()
+        .lowercase()
+        .description("Filter to a particular community. Example: `artblocks`"),
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(20)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description(
+          "Amount of items returned in response. If `includeMetadata=true` max limit is 20, otherwise max limit is 1,000."
+        )
+        .when("includeMetadata", {
+          is: true,
+          then: Joi.number().integer().max(20),
+          otherwise: Joi.number().integer().max(1000),
+        }),
       sortBy: Joi.string()
         .valid("eventTimestamp", "createdAt")
         .default("eventTimestamp")
@@ -55,6 +55,9 @@ export const getUserActivityV3Options: RouteOptions = {
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
+      includeMetadata: Joi.boolean()
+        .default(true)
+        .description("If true, metadata is included in the response."),
       types: Joi.alternatives()
         .try(
           Joi.array().items(
@@ -67,7 +70,7 @@ export const getUserActivityV3Options: RouteOptions = {
             .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
-    }),
+    }).xor("collection", "collectionsSetId", "community"),
   },
   response: {
     schema: Joi.object({
@@ -80,6 +83,11 @@ export const getUserActivityV3Options: RouteOptions = {
           price: Joi.number().unsafe(),
           amount: Joi.number().unsafe(),
           timestamp: Joi.number(),
+          createdAt: Joi.string(),
+          contract: Joi.string()
+            .lowercase()
+            .pattern(/^0x[a-fA-F0-9]{40}$/)
+            .allow(null),
           token: Joi.object({
             tokenId: Joi.string().allow(null),
             tokenName: Joi.string().allow("", null),
@@ -93,13 +101,16 @@ export const getUserActivityV3Options: RouteOptions = {
           txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
-          source: Joi.object().allow(null),
-          createdAt: Joi.string(),
+          order: Joi.object({
+            id: Joi.string().allow(null),
+            side: Joi.string().valid("ask", "bid").allow(null),
+            source: Joi.object().allow(null),
+          }),
         })
       ),
-    }).label(`getUserActivity${version.toUpperCase()}Response`),
+    }).label(`getCollectionActivity${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(`get-user-activity-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(`get-collection-activity-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },
@@ -110,23 +121,20 @@ export const getUserActivityV3Options: RouteOptions = {
       query.types = [query.types];
     }
 
-    if (!_.isArray(query.users)) {
-      query.users = [query.users];
-    }
-
     if (query.continuation) {
       query.continuation = splitContinuation(query.continuation)[0];
     }
 
     try {
-      const activities = await UserActivities.getActivities(
-        query.users,
-        [],
-        "",
+      const activities = await Activities.getCollectionActivities(
+        query.collection,
+        query.community,
+        query.collectionsSetId,
         query.continuation,
         query.types,
         query.limit,
-        query.sortBy
+        query.sortBy,
+        query.includeMetadata
       );
 
       // If no activities found
@@ -136,10 +144,9 @@ export const getUserActivityV3Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
 
-      // Iterate over the activities
       const result = _.map(activities, (activity) => {
-        const source = activity.metadata.orderSourceIdInt
-          ? sources.get(activity.metadata.orderSourceIdInt)
+        const orderSource = activity.order?.sourceIdInt
+          ? sources.get(activity.order.sourceIdInt)
           : undefined;
 
         return {
@@ -150,16 +157,23 @@ export const getUserActivityV3Options: RouteOptions = {
           amount: activity.amount,
           timestamp: activity.eventTimestamp,
           createdAt: activity.createdAt.toISOString(),
+          contract: activity.contract,
           token: activity.token,
           collection: activity.collection,
           txHash: activity.metadata.transactionHash,
           logIndex: activity.metadata.logIndex,
           batchIndex: activity.metadata.batchIndex,
-          source: source
+          order: activity.order?.id
             ? {
-                domain: source?.domain,
-                name: source?.metadata.title || source?.name,
-                icon: source?.metadata.icon,
+                id: activity.order.id,
+                side: activity.order.side === "sell" ? "ask" : "bid",
+                source: orderSource
+                  ? {
+                      domain: orderSource?.domain,
+                      name: orderSource?.metadata.title || orderSource?.name,
+                      icon: orderSource?.metadata.icon,
+                    }
+                  : undefined,
               }
             : undefined,
         };
@@ -181,7 +195,7 @@ export const getUserActivityV3Options: RouteOptions = {
 
       return { activities: result, continuation };
     } catch (error) {
-      logger.error(`get-user-activity-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(`get-collection-activity-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },

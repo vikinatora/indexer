@@ -100,7 +100,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
         .max(1000)
         .default(50)
         .description("Amount of items returned in response."),
-    }).oxor("token", "tokenSetId", "contracts", "ids", "source", "native"),
+    }).oxor("token", "tokenSetId", "contracts", "ids"),
   },
   response: {
     schema: Joi.object({
@@ -124,6 +124,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             Joi.object({
               kind: "token",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 tokenName: Joi.string().allow("", null),
                 image: Joi.string().allow("", null),
@@ -132,6 +133,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             Joi.object({
               kind: "collection",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 image: Joi.string().allow("", null),
               }),
@@ -139,6 +141,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             Joi.object({
               kind: "attribute",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 attributes: Joi.array().items(
                   Joi.object({ key: Joi.string(), value: Joi.string() })
@@ -186,6 +189,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                 json_build_object(
                   'kind', 'token',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'tokenName', tokens.name,
                     'image', tokens.image
@@ -202,6 +206,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                 json_build_object(
                   'kind', 'collection',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'image', (collections.metadata ->> 'imageUrl')::TEXT
                   )
@@ -214,6 +219,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                 json_build_object(
                   'kind', 'collection',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'image', (collections.metadata ->> 'imageUrl')::TEXT
                   )
@@ -229,6 +235,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                       json_build_object(
                         'kind', 'collection',
                         'data', json_build_object(
+                          'collectionId', collections.id,
                           'collectionName', collections.name,
                           'image', (collections.metadata ->> 'imageUrl')::TEXT
                         )
@@ -240,6 +247,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                       json_build_object(
                         'kind', 'attribute',
                         'data', json_build_object(
+                          'collectionId', collections.id,
                           'collectionName', collections.name,
                           'attributes', ARRAY[json_build_object('key', attribute_keys.key, 'value', attributes.value)],
                           'image', (collections.metadata ->> 'imageUrl')::TEXT
@@ -312,7 +320,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
         "orders.side = 'buy'",
       ];
 
-      let orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+      let orderStatusFilter;
 
       if (query.ids) {
         if (Array.isArray(query.ids)) {
@@ -320,6 +328,8 @@ export const getOrdersBidsV4Options: RouteOptions = {
         } else {
           conditions.push(`orders.id = $/ids/`);
         }
+      } else {
+        orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
       }
 
       if (query.tokenSetId) {
@@ -387,7 +397,9 @@ export const getOrdersBidsV4Options: RouteOptions = {
         conditions.push(`orders.is_reservoir`);
       }
 
-      conditions.push(orderStatusFilter);
+      if (orderStatusFilter) {
+        conditions.push(orderStatusFilter);
+      }
 
       if (query.continuation) {
         const [priceOrCreatedAt, id] = splitContinuation(
