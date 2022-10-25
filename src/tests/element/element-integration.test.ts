@@ -81,6 +81,10 @@ describe("ElementTestnet", () => {
     const builder = new Element.Builders.SingleToken(chainId);
     const price = parseEther("0.001");
 
+    const hashNonce = await exchange.getHashNonce(baseProvider, seller.address);
+
+    logger.info("ElementTestnet", `hashNonce=${hashNonce}`);
+
     // Build Sell order
     const sellOrder = builder.build({
       direction: "sell",
@@ -89,7 +93,7 @@ describe("ElementTestnet", () => {
       tokenId: tokenId,
       paymentToken: Element.Addresses.Eth[config.chainId],
       price,
-      hashNonce: 0,
+      hashNonce,
       expiry: Math.floor(Date.now() / 1000) + 10000,
     });
 
@@ -151,6 +155,10 @@ describe("ElementTestnet", () => {
 
     await wait(20 * 1000);
 
+    const hashNonce = await exchange.getHashNonce(baseProvider, buyer.address);
+
+    logger.info("ElementTestnet", `hashNonce=${hashNonce}`);
+
     // Build Sell order
     const buyOrder = builder.build({
       direction: "buy",
@@ -159,7 +167,7 @@ describe("ElementTestnet", () => {
       tokenId: tokenId,
       paymentToken: Common.Addresses.Weth[chainId],
       price,
-      hashNonce: 0,
+      hashNonce,
       expiry: Math.floor(Date.now() / 1000) + 10000,
     });
 
@@ -208,6 +216,10 @@ describe("ElementTestnet", () => {
     const builder = new Element.Builders.SingleToken(chainId);
     const price = parseEther("0.001");
 
+    const hashNonce = await exchange.getHashNonce(baseProvider, seller.address);
+
+    logger.info("ElementTestnet", `hashNonce=${hashNonce}`);
+
     // Build Sell order
     const sellOrder = builder.build({
       direction: "sell",
@@ -217,7 +229,7 @@ describe("ElementTestnet", () => {
       amount: 1,
       paymentToken: Element.Addresses.Eth[config.chainId],
       price,
-      hashNonce: 0,
+      hashNonce,
       expiry: Math.floor(Date.now() / 1000) + 10000,
     });
 
@@ -278,6 +290,10 @@ describe("ElementTestnet", () => {
 
     await approveTx.wait();
 
+    const hashNonce = await exchange.getHashNonce(baseProvider, buyer.address);
+
+    logger.info("ElementTestnet", `hashNonce=${hashNonce}`);
+
     // Build Sell order
     const buyOrder = builder.build({
       direction: "buy",
@@ -287,7 +303,7 @@ describe("ElementTestnet", () => {
       amount: 1,
       paymentToken: Common.Addresses.Weth[chainId],
       price,
-      hashNonce: 0,
+      hashNonce,
       expiry: Math.floor(Date.now() / 1000) + 10000,
     });
 
@@ -332,235 +348,151 @@ describe("ElementTestnet", () => {
     expect(orderAfter?.fillability_status).toEqual("filled");
   });
 
-  //   test("balance-change", async () => {
-  //     // const nftBalance1 = await idb.oneOrNone(
-  //     //   `SELECT amount FROM "nft_balances" "o" WHERE "o"."owner" = $/maker/`,
-  //     //   {
-  //     //     id: orderId,
-  //     //     maker: toBuffer(operatorProvider.address),
-  //     //     contract: toBuffer(testNFTAddr),
-  //     //     tokenId: tokenId,
-  //     //   }
-  //     // );
+  test("sellERC721-cancel", async () => {
+    await setupNFTs(nftToken, seller, buyer, tokenId, operator);
 
-  //     // console.log("nftBalance1", nftBalance1);
+    const exchange = new Element.Exchange(chainId);
+    const builder = new Element.Builders.SingleToken(chainId);
+    const price = parseEther("0.001");
 
-  //     const tokenOwner = await nftToken.ownerOf(tokenId);
-  //     const indexInterval = 40 * 1000;
-  //     if (tokenOwner == operatorProvider.address) {
-  //       const tx = await nftToken
-  //         .connect(operatorProvider)
-  //         .transferFrom(operatorProvider.address, operator2Provider.address, tokenId);
-  //       await tx.wait();
-  //       await wait(indexInterval);
-  //     }
+    const hashNonce = await exchange.getHashNonce(baseProvider, seller.address);
 
-  //     // const nftBalance = await idb.oneOrNone(
-  //     //   `SELECT amount FROM "nft_balances" "o" WHERE "o"."owner" = $/maker/`,
-  //     //   {
-  //     //     id: orderId,
-  //     //     maker: toBuffer(operatorProvider.address),
-  //     //     contract: toBuffer(testNFTAddr),
-  //     //     tokenId: tokenId,
-  //     //   }
-  //     // );
+    logger.info("ElementTestnet", `hashNonce=${hashNonce}`);
 
-  //     // console.log("nftBalance", nftBalance);
+    // Build Sell order
+    const sellOrder = builder.build({
+      direction: "sell",
+      maker: seller.address,
+      contract: nftToken.address,
+      tokenId: tokenId,
+      paymentToken: Element.Addresses.Eth[config.chainId],
+      price,
+      hashNonce,
+      expiry: Math.floor(Date.now() / 1000) + 10000,
+    });
 
-  //     const order = await idb.oneOrNone(
-  //       `SELECT fillability_status FROM "orders" "o" WHERE "o"."id" = $/id/`,
-  //       {
-  //         id: orderId,
-  //       }
-  //     );
+    await sellOrder.sign(seller);
 
-  //     const backTx = await nftToken
-  //       .connect(operator2Provider)
-  //       .transferFrom(operator2Provider.address, operatorProvider.address, tokenId);
-  //     await backTx.wait();
+    const orderInfo: orders.element.OrderInfo = {
+      orderParams: sellOrder.params,
+      metadata: {},
+    };
 
-  //     await wait(indexInterval);
+    const orderId = sellOrder.hash();
 
-  //     const orderAfter = await idb.oneOrNone(
-  //       `SELECT fillability_status FROM "orders" "o" WHERE "o"."id" = $/id/`,
-  //       {
-  //         id: orderId,
-  //       }
-  //     );
+    logger.info("ElementTestnet", `Save ${orderId} to database`);
 
-  //     // const nftBalance2 = await idb.oneOrNone(
-  //     //   `SELECT amount FROM "nft_balances" "o" WHERE "o"."owner" = $/maker/`,
-  //     //   {
-  //     //     id: orderId,
-  //     //     maker: toBuffer(operatorProvider.address),
-  //     //     contract: toBuffer(testNFTAddr),
-  //     //     tokenId: tokenId,
-  //     //   }
-  //     // );
+    // Store order to database
+    await orders.element.save([orderInfo]);
 
-  //     expect(order?.fillability_status).toEqual("no-balance");
-  //     expect(orderAfter?.fillability_status).toEqual("fillable");
-  //   });
+    await wait(10 * 1000);
 
-  //   test("approval-change", async () => {
-  //     const indexInterval = 30 * 1000;
+    const ordeStatus = await getOrder(orderId);
+    logger.info("ElementTestnet", `Order status ${JSON.stringify(ordeStatus)}`);
 
-  //     const cancelTx = await nftToken
-  //       .connect(operatorProvider)
-  //       .setApprovalForAll(Zora.Addresses.Erc721TransferHelper[chainId], false);
-  //     await cancelTx.wait();
+    // Create matching buy order
+    const buyOrder = sellOrder.buildMatching();
 
-  //     await wait(indexInterval);
+    // Cancel order
+    const cancelTx = await exchange.cancelOrder(seller, sellOrder);
+    await cancelTx.wait();
 
-  //     const order = await idb.oneOrNone(
-  //       `SELECT fillability_status, approval_status FROM "orders" "o" WHERE "o"."id" = $/id/`,
-  //       {
-  //         id: orderId,
-  //       }
-  //     );
+    logger.info("ElementTestnet", `Cancel tx=${cancelTx.hash}`);
 
-  //     const approvalTx = await nftToken
-  //       .connect(operatorProvider)
-  //       .setApprovalForAll(Zora.Addresses.Erc721TransferHelper[chainId], true);
-  //     await approvalTx.wait();
+    let isReverted = false;
 
-  //     await wait(indexInterval);
+    // Fill order
+    try {
+      const fillTx = await exchange.fillOrder(buyer, sellOrder, buyOrder);
+      logger.info("ElementTestnet", `Fill order=${orderId}, tx=${fillTx.hash}`);
+      await fillTx.wait();
+      logger.info("ElementTestnet", `Waiting... ${indexInterval}`);
+    } catch (e) {
+      isReverted = true;
+    }
 
-  //     const orderAfter = await idb.oneOrNone(
-  //       `SELECT fillability_status, approval_status FROM "orders" "o" WHERE "o"."id" = $/id/`,
-  //       {
-  //         id: orderId,
-  //       }
-  //     );
+    expect(isReverted).toEqual(true);
 
-  //     expect(order?.approval_status).toEqual("no-approval");
-  //     expect(orderAfter?.approval_status).toEqual("approved");
-  //   });
+    await wait(indexInterval);
 
-  //   test("cancel-order", async () => {
-  //     const seller = operatorProvider;
-  //     const order = new Zora.Order(chainId, {
-  //       tokenContract: testNFTAddr,
-  //       tokenId,
-  //       askPrice: "0",
-  //       askCurrency: ethers.constants.AddressZero,
-  //       sellerFundsRecipient: seller.address,
-  //       findersFeeBps: 0,
-  //     });
+    // Check order
+    const orderAfter = await getOrder(orderId);
+    logger.info("ElementTestnet", `Order status ${JSON.stringify(orderAfter)}`);
+    expect(orderAfter?.fillability_status).toEqual("cancelled");
+  });
 
-  //     const exchange = new Zora.Exchange(chainId);
-  //     const cancelTxt = await exchange.cancelOrder(seller, order);
-  //     await cancelTxt.wait();
+  test("sellERC1155-cancel", async () => {
+    await setupERC1155NFTs(erc1155, seller, buyer, tokenId, operator);
+    const exchange = new Element.Exchange(chainId);
+    const builder = new Element.Builders.SingleToken(chainId);
+    const price = parseEther("0.001");
 
-  //     await wait(indexInterval);
-  //     const dbOrder = await idb.oneOrNone(
-  //       `SELECT fillability_status, approval_status FROM "orders" "o" WHERE "o"."id" = $/id/`,
-  //       {
-  //         id: orderId,
-  //       }
-  //     );
-  //     // console.log("dbOrder", dbOrder);
-  //     expect(dbOrder?.fillability_status).toEqual("cancelled");
-  //   });
+    const hashNonce = await exchange.getHashNonce(baseProvider, seller.address);
 
-  //   test("update-order", async () => {
-  //     const price = parseEther("0.002");
-  //     const order = new Zora.Order(chainId, {
-  //       tokenContract: testNFTAddr,
-  //       tokenId,
-  //       askPrice: price.toString(),
-  //       askCurrency: ethers.constants.AddressZero,
-  //       sellerFundsRecipient: operatorProvider.address,
-  //       findersFeeBps: 0,
-  //     });
+    logger.info("ElementTestnet", `hashNonce=${hashNonce}`);
 
-  //     const exchange = new Zora.Exchange(chainId);
-  //     const updateTx = await operatorProvider.sendTransaction({
-  //       from: operatorProvider.address,
-  //       to: exchange.contract.address,
-  //       data: exchange.contract.interface.encodeFunctionData("setAskPrice", [
-  //         order.params.tokenContract,
-  //         order.params.tokenId,
-  //         order.params.askPrice,
-  //         order.params.askCurrency,
-  //       ]),
-  //     });
+    // Build Sell order
+    const sellOrder = builder.build({
+      direction: "sell",
+      maker: seller.address,
+      contract: erc1155.address,
+      tokenId: tokenId,
+      amount: 1,
+      paymentToken: Element.Addresses.Eth[config.chainId],
+      price,
+      hashNonce,
+      expiry: Math.floor(Date.now() / 1000) + 10000,
+    });
 
-  //     await updateTx.wait();
-  //     await wait(indexInterval);
+    await sellOrder.sign(seller);
 
-  //     const dbOrder = await idb.oneOrNone(
-  //       `SELECT fillability_status, approval_status, price FROM "orders" "o" WHERE "o"."id" = $/id/`,
-  //       {
-  //         id: orderId,
-  //       }
-  //     );
+    const orderInfo: orders.element.OrderInfo = {
+      orderParams: sellOrder.params,
+      metadata: {},
+    };
 
-  //     // console.log("dbOrder", dbOrder)
-  //     expect(dbOrder?.price).toEqual(price.toString());
-  //   });
+    const orderId = sellOrder.hash();
 
-  //   test("update-order-invalid-currency", async () => {
-  //     const price = parseEther("0.002");
-  //     const order = new Zora.Order(chainId, {
-  //       tokenContract: testNFTAddr,
-  //       tokenId,
-  //       askPrice: price.toString(),
-  //       // askCurrency: ethers.constants.AddressZero,
-  //       askCurrency: "0x5ffbac75efc9547fbc822166fed19b05cd5890bb",
-  //       sellerFundsRecipient: operatorProvider.address,
-  //       findersFeeBps: 0,
-  //     });
+    logger.info("ElementTestnet", `Save ${orderId} to database`);
 
-  //     const exchange = new Zora.Exchange(chainId);
-  //     const updateTx = await operatorProvider.sendTransaction({
-  //       from: operatorProvider.address,
-  //       to: exchange.contract.address,
-  //       data: exchange.contract.interface.encodeFunctionData("setAskPrice", [
-  //         order.params.tokenContract,
-  //         order.params.tokenId,
-  //         order.params.askPrice,
-  //         order.params.askCurrency,
-  //       ]),
-  //     });
+    // Store order to database
+    const result = await orders.element.save([orderInfo]);
 
-  //     await updateTx.wait();
-  //     await wait(indexInterval);
+    logger.info("ElementTestnet", `Save result ${JSON.stringify(result)}`);
 
-  //     const dbOrder = await idb.oneOrNone(
-  //       `SELECT fillability_status, approval_status, price FROM "orders" "o" WHERE "o"."id" = $/id/`,
-  //       {
-  //         id: orderId,
-  //       }
-  //     );
+    await wait(10 * 1000);
 
-  //     // console.log("dbOrder", dbOrder)
-  //     expect(dbOrder?.fillability_status).toEqual("cancelled");
-  //   });
+    const ordeStatus = await getOrder(orderId);
+    logger.info("ElementTestnet", `Order status ${JSON.stringify(ordeStatus)}`);
 
-  //   test("fill-order", async () => {
-  //     const price = parseEther("0.002");
-  //     const order = new Zora.Order(chainId, {
-  //       tokenContract: testNFTAddr,
-  //       tokenId,
-  //       askPrice: price.toString(),
-  //       askCurrency: ethers.constants.AddressZero,
-  //       sellerFundsRecipient: operatorProvider.address,
-  //       findersFeeBps: 0,
-  //     });
+    // Cancel order
+    const cancelTx = await exchange.incrementHashNonce(seller);
+    await cancelTx.wait();
 
-  //     const exchange = new Zora.Exchange(chainId);
-  //     await exchange.fillOrder(operator2Provider, order);
-  //     await wait(indexInterval);
+    // Create matching buy order
+    const buyOrder = sellOrder.buildMatching();
 
-  //     const dbOrder = await idb.oneOrNone(
-  //       `SELECT fillability_status, approval_status, price FROM "orders" "o" WHERE "o"."id" = $/id/`,
-  //       {
-  //         id: orderId,
-  //       }
-  //     );
+    let isReverted = false;
+    // Fill order
+    try {
+      const fillTx = await exchange.fillOrder(buyer, sellOrder, buyOrder);
 
-  //     // console.log("dbOrder", dbOrder)
-  //     expect(dbOrder?.fillability_status).toEqual("filled");
-  //   });
+      logger.info("ElementTestnet", `Fill order=${orderId}, tx=${fillTx.hash}`);
+
+      await fillTx.wait();
+
+      logger.info("ElementTestnet", `Waiting... ${indexInterval}`);
+    } catch (e) {
+      isReverted = true;
+    }
+
+    expect(isReverted).toEqual(true);
+
+    await wait(indexInterval);
+
+    // Check order
+    const orderAfter = await getOrder(orderId);
+    logger.info("ElementTestnet", `Order status ${JSON.stringify(orderAfter)}`);
+    expect(orderAfter?.fillability_status).toEqual("cancelled");
+  });
 });

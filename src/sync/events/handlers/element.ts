@@ -18,6 +18,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   const fillEvents: es.fills.Event[] = [];
   const orderInfos: orderUpdatesById.OrderInfo[] = [];
   const nonceCancelEvents: es.nonceCancels.Event[] = [];
+  const bulkCancelEvents: es.bulkCancels.Event[] = [];
 
   // Handle the events
   for (const { kind, baseEventParams, log } of events) {
@@ -38,6 +39,35 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           maker,
           nonce,
           baseEventParams,
+        });
+
+        break;
+      }
+
+      case "element-hash-nonce-incremented": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const maker = parsedLog.args["maker"].toLowerCase();
+        const nonce = parsedLog.args["nonce"].toString();
+
+        // Cancel all related orders across maker
+        bulkCancelEvents.push({
+          orderKind: "element-erc721",
+          maker,
+          minNonce: nonce,
+          acrossAll: true,
+          baseEventParams,
+        });
+
+        bulkCancelEvents.push({
+          orderKind: "element-erc1155",
+          maker,
+          minNonce: nonce,
+          acrossAll: true,
+          baseEventParams: {
+            ...baseEventParams,
+            // Make sure unique in `bulk_cancel_events` table
+            batchIndex: baseEventParams.batchIndex + 1,
+          },
         });
 
         break;
@@ -384,10 +414,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
     }
   }
 
-  // console.log("orderInfos", orderInfos);
-  // console.log("fillEvents", fillEvents);
-
   return {
+    bulkCancelEvents,
     nonceCancelEvents,
     fillEventsPartial,
     fillEvents,

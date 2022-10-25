@@ -8,7 +8,7 @@ import { handleEvents } from "@/events-sync/handlers/element";
 // import { handleEvents } from "@/events-sync/handlers/erc721";
 import { processOnChainData } from "@/events-sync/handlers/utils";
 import { OrderInfo } from "@/orderbook/orders/element";
-
+import { logger } from "@/common/logger";
 import { TransactionResponse } from "@ethersproject/abstract-provider";
 import { config } from "@/config/index";
 import { Element } from "@reservoir0x/sdk";
@@ -79,6 +79,13 @@ async function getOrder(orderId: string) {
 describe("ElementExchange", () => {
   const chainId = config.chainId;
   const exchange = new Element.Exchange(chainId);
+
+  beforeEach(async () => {
+    if (chainId != 1) {
+      logger.error("ElementExchange", "please switch to mainnet");
+      process.exit();
+    }
+  });
 
   test("buyERC721", async () => {
     const transaction = await baseProvider.getTransaction(allTx.testnet.buyERC721);

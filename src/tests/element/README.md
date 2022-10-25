@@ -13,74 +13,40 @@ TEST_ACCOUNT2=address
 
 - Start indexer
 - Run tests
-- Create order via API, Make on-chain transaction(cancel or increase nonce)
+- Create order then sore to Database
+- Make on-chain transaction(cancel or increase nonce)
 - And waiting indexer to index the state change.
 - Then check order's status is expected
 
 ## Test Cases
 
-### Create order
-- Make create order tx
-- Check database the order is exists
+### sellERC721
 
 ```shell
-yarn test zora-integration.test.ts -t create-order
+yarn test element-integration.test.ts -t sellERC721
 ```
 
-### Balance change
-- Transfer NFT to another address
-- Check order's `fillability_status` has been change to `no-balance`
-- Send NFT back
-- Check order's `fillability_status` has been change back to `fillable`
-
+### buyERC721
 ```shell
-yarn test zora-integration.test.ts -t balance-change
+yarn test element-integration.test.ts -t buyERC721
 ```
 
-### Approval change
-- Cancel Approval
-- Check order's `approval_status` has been change to `no-approval`
-- Approval again
-- Check order's `approval_status` has been change to `approved`
-
+### sellERC1155
 ```shell
-yarn test zora-integration.test.ts -t approval-change
+yarn test element-integration.test.ts -t sellERC1155
 ```
 
-
-### Update order
-- Update order
-- Check order's `price` has been changed
-
+### buyERC1155
 ```shell
-yarn test zora-integration.test.ts -t update-order
+yarn test element-integration.test.ts -t buyERC1155
 ```
 
-### Fill order
-- Fill order 
-- Check order's `fillability_status` has been changed to `filled`
-
-
+### sellERC721-cancel
 ```shell
-yarn test zora-integration.test.ts -t fill-order
+yarn test element-integration.test.ts -t sellERC721-cancel
 ```
 
-
-### Cancel order
-- Cancel order 
-- Check order's `fillability_status` has been changed to `cancelled`
-
-
+### sellERC1155-cancel
 ```shell
-yarn test zora-integration.test.ts -t cancel-order
+yarn test element-integration.test.ts -t sellERC1155-cancel
 ```
-
-### Update order with invalid currency
-``` bash
-# create order 
-yarn test zora-integration.test.ts -t create-order
-# update order
-yarn test zora-integration.test.ts -t update-order-invalid-currency
-```
-
-
