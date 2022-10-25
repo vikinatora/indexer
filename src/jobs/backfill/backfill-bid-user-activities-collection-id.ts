@@ -40,7 +40,7 @@ if (config.doBackgroundWork) {
       }
 
       if (cursor) {
-        continuationFilter = `WHERE (a.id) > ($/activityId/)`;
+        continuationFilter = ` AND (a.id) > ($/activityId/)`;
       }
 
       const results = await idb.manyOrNone(
