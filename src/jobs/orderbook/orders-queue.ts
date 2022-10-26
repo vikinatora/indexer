@@ -47,6 +47,13 @@ if (config.doBackgroundWork) {
             break;
           }
 
+          case "forward": {
+            const result = await orders.forward.save([info as orders.forward.OrderInfo]);
+            logger.info(QUEUE_NAME, `[forward] Order save result: ${JSON.stringify(result)}`);
+
+            break;
+          }
+
           case "cryptopunks": {
             const result = await orders.cryptopunks.save([info as orders.cryptopunks.OrderInfo]);
             logger.info(QUEUE_NAME, `[cryptopunks] Order save result: ${JSON.stringify(result)}`);
@@ -211,7 +218,13 @@ export type GenericOrderInfo =
       info: orders.element.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
-    };
+    }
+  | {
+      kind: "forward";
+      info: orders.forward.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
 
 export const addToQueue = async (orderInfos: GenericOrderInfo[], prioritized = false) => {
   await queue.addBulk(
