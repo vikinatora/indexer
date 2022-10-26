@@ -1,6 +1,7 @@
 // Exports
 
 export * as cryptopunks from "@/orderbook/orders/cryptopunks";
+export * as forward from "@/orderbook/orders/forward";
 export * as foundation from "@/orderbook/orders/foundation";
 export * as looksRare from "@/orderbook/orders/looks-rare";
 export * as seaport from "@/orderbook/orders/seaport";
@@ -46,7 +47,8 @@ export type OrderKind =
   | "sudoswap"
   | "universe"
   | "nftx"
-  | "blur";
+  | "blur"
+  | "forward";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
