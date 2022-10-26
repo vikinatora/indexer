@@ -1587,10 +1587,10 @@
     ethers "^5.6.8"
     merkletreejs "0.2.31"
 
-"@reservoir0x/sdk@0.0.203":
-  version "0.0.203"
-  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.203.tgz#d288438a9dd506302003d65b7474267299f7dd47"
-  integrity sha512-y3piEPllfrgAscOdRdp61BnUGFQUlk4Zd/89HwjYXclvUZP/7XBs55VNBQStCxSy5Crdnik+AG5q0E4hD14A9A==
+"@reservoir0x/sdk@0.0.207":
+  version "0.0.207"
+  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.207.tgz#4f01bbef1d894f7d57b9ef912b71b2e87d10998a"
+  integrity sha512-wYc7TKHmtFWkt8HlmkXrs/vFTo83GnoM9z2j0s/9XNQ+YOeAXlzF+fH0jVPQfIZ1tvOQJoN8SJtEctvzcMX9tg==
   dependencies:
     ethers "^5.6.8"
     merkletreejs "0.2.31"
