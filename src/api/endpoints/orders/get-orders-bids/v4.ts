@@ -47,6 +47,9 @@ export const getOrdersBidsV4Options: RouteOptions = {
         .description(
           "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
         ),
+      community: Joi.string()
+        .lowercase()
+        .description("Filter to a particular community. Example: `artblocks`"),
       contracts: Joi.alternatives().try(
         Joi.array()
           .max(50)
@@ -100,7 +103,9 @@ export const getOrdersBidsV4Options: RouteOptions = {
         .max(1000)
         .default(50)
         .description("Amount of items returned in response."),
-    }).oxor("token", "tokenSetId", "contracts", "ids"),
+    })
+      .oxor("token", "tokenSetId", "contracts", "ids")
+      .with("community", "maker"),
   },
   response: {
     schema: Joi.object({
@@ -124,6 +129,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             Joi.object({
               kind: "token",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 tokenName: Joi.string().allow("", null),
                 image: Joi.string().allow("", null),
@@ -132,6 +138,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             Joi.object({
               kind: "collection",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 image: Joi.string().allow("", null),
               }),
@@ -139,6 +146,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             Joi.object({
               kind: "attribute",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 attributes: Joi.array().items(
                   Joi.object({ key: Joi.string(), value: Joi.string() })
@@ -186,6 +194,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                 json_build_object(
                   'kind', 'token',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'tokenName', tokens.name,
                     'image', tokens.image
@@ -202,6 +211,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                 json_build_object(
                   'kind', 'collection',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'image', (collections.metadata ->> 'imageUrl')::TEXT
                   )
@@ -214,6 +224,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                 json_build_object(
                   'kind', 'collection',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'image', (collections.metadata ->> 'imageUrl')::TEXT
                   )
@@ -229,6 +240,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                       json_build_object(
                         'kind', 'collection',
                         'data', json_build_object(
+                          'collectionId', collections.id,
                           'collectionName', collections.name,
                           'image', (collections.metadata ->> 'imageUrl')::TEXT
                         )
@@ -240,6 +252,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                       json_build_object(
                         'kind', 'attribute',
                         'data', json_build_object(
+                          'collectionId', collections.id,
                           'collectionName', collections.name,
                           'attributes', ARRAY[json_build_object('key', attribute_keys.key, 'value', attributes.value)],
                           'image', (collections.metadata ->> 'imageUrl')::TEXT
@@ -312,7 +325,8 @@ export const getOrdersBidsV4Options: RouteOptions = {
         "orders.side = 'buy'",
       ];
 
-      let orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+      let communityFilter = "";
+      let orderStatusFilter;
 
       if (query.ids) {
         if (Array.isArray(query.ids)) {
@@ -320,6 +334,8 @@ export const getOrdersBidsV4Options: RouteOptions = {
         } else {
           conditions.push(`orders.id = $/ids/`);
         }
+      } else {
+        orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
       }
 
       if (query.tokenSetId) {
@@ -369,6 +385,12 @@ export const getOrdersBidsV4Options: RouteOptions = {
 
         (query as any).maker = toBuffer(query.maker);
         conditions.push(`orders.maker = $/maker/`);
+
+        // Community filter is valid only when maker filter is passed
+        if (query.community) {
+          communityFilter =
+            "JOIN (SELECT DISTINCT contract FROM collections WHERE community = $/community/) c ON orders.contract = c.contract";
+        }
       }
 
       if (query.source) {
@@ -387,7 +409,9 @@ export const getOrdersBidsV4Options: RouteOptions = {
         conditions.push(`orders.is_reservoir`);
       }
 
-      conditions.push(orderStatusFilter);
+      if (orderStatusFilter) {
+        conditions.push(orderStatusFilter);
+      }
 
       if (query.continuation) {
         const [priceOrCreatedAt, id] = splitContinuation(
@@ -405,6 +429,9 @@ export const getOrdersBidsV4Options: RouteOptions = {
           );
         }
       }
+
+      baseQuery += communityFilter;
+
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }

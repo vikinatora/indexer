@@ -15,7 +15,7 @@ const version = "v3";
 export const getCollectionActivityV3Options: RouteOptions = {
   description: "Collection activity",
   notes: "This API can be used to build a feed for a collection",
-  tags: ["api", "Activity"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 1,
@@ -126,6 +126,8 @@ export const getCollectionActivityV3Options: RouteOptions = {
     try {
       const activities = await Activities.getCollectionActivities(
         params.collection,
+        "",
+        "",
         query.continuation,
         query.types,
         query.limit,
