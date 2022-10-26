@@ -221,7 +221,7 @@ export const save = async (
       const source = metadata.source ? await sources.getOrInsert(metadata.source) : undefined;
 
       // Handle: native Reservoir orders
-      const isReservoir = true;
+      const isReservoir = false;
 
       // Handle: fee breakdown
       const feeBreakdown = order.params.fees.map(({ recipient, amount }) => ({
