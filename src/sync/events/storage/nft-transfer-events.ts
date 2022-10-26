@@ -70,6 +70,8 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
 
     const tokenId = `${contractId}-${event.tokenId}`;
     if (!uniqueTokens.has(tokenId)) {
+      uniqueTokens.add(tokenId);
+
       tokenValues.push({
         collection_id: event.baseEventParams.address,
         contract: toBuffer(event.baseEventParams.address),

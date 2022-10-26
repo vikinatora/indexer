@@ -389,7 +389,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
         // Community filter is valid only when maker filter is passed
         if (query.community) {
           communityFilter =
-            "JOIN collections ON orders.contract = collections.contract AND collections.community = $/community/";
+            "JOIN (SELECT DISTINCT contract FROM collections WHERE community = $/community/) c ON orders.contract = c.contract";
         }
       }
 
