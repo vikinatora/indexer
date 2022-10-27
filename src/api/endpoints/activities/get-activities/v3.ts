@@ -33,6 +33,11 @@ export const getActivityV3Options: RouteOptions = {
   response: {
     schema: Joi.object({
       continuation: Joi.string().pattern(regex.base64).allow(null),
+      sortDirection: Joi.string()
+        .lowercase()
+        .valid("asc", "desc")
+        .default("desc")
+        .description("Order the items are returned in the response."),
       activities: Joi.array().items(
         Joi.object({
           id: Joi.number(),
@@ -70,7 +75,8 @@ export const getActivityV3Options: RouteOptions = {
         query.continuation,
         query.limit,
         true,
-        query.includeMetadata
+        query.includeMetadata,
+        query.sortDirection
       );
 
       // If no activities found
