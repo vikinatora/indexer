@@ -47,6 +47,13 @@ if (config.doBackgroundWork) {
             break;
           }
 
+          case "forward": {
+            const result = await orders.forward.save([info as orders.forward.OrderInfo]);
+            logger.info(QUEUE_NAME, `[forward] Order save result: ${JSON.stringify(result)}`);
+
+            break;
+          }
+
           case "cryptopunks": {
             const result = await orders.cryptopunks.save([info as orders.cryptopunks.OrderInfo]);
             logger.info(QUEUE_NAME, `[cryptopunks] Order save result: ${JSON.stringify(result)}`);
@@ -76,7 +83,12 @@ if (config.doBackgroundWork) {
               relayToArweave,
               validateBidValue
             );
-            logger.info(QUEUE_NAME, `[seaport] Order save result: ${JSON.stringify(result)}`);
+            logger.info(
+              QUEUE_NAME,
+              `[seaport] Order save result: ${JSON.stringify(result)}, info: ${JSON.stringify(
+                info
+              )}`
+            );
 
             break;
           }
@@ -101,6 +113,16 @@ if (config.doBackgroundWork) {
           case "universe": {
             const result = await orders.universe.save([info as orders.universe.OrderInfo]);
             logger.info(QUEUE_NAME, `[universe] Order save result: ${JSON.stringify(result)}`);
+
+            break;
+          }
+
+          case "element": {
+            const result = await orders.element.save(
+              [info as orders.element.OrderInfo],
+              relayToArweave
+            );
+            logger.info(QUEUE_NAME, `[element] Order save result: ${JSON.stringify(result)}`);
 
             break;
           }
@@ -190,7 +212,19 @@ export type GenericOrderInfo =
       info: orders.universe.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
-    };
+    }
+  | {
+      kind: "element";
+      info: orders.element.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "forward";
+      info: orders.forward.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
 
 export const addToQueue = async (orderInfos: GenericOrderInfo[], prioritized = false) => {
   await queue.addBulk(

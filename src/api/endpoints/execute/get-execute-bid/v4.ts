@@ -33,6 +33,11 @@ import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/c
 // Universe
 import * as universeBuyToken from "@/orderbook/orders/universe/build/buy/token";
 
+// Forward
+import * as forwardBuyAttribute from "@/orderbook/orders/forward/build/buy/attribute";
+import * as forwardBuyToken from "@/orderbook/orders/forward/build/buy/token";
+import * as forwardBuyCollection from "@/orderbook/orders/forward/build/buy/collection";
+
 const version = "v4";
 
 export const getExecuteBidV4Options: RouteOptions = {
@@ -88,7 +93,7 @@ export const getExecuteBidV4Options: RouteOptions = {
             .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
             .required(),
           orderKind: Joi.string()
-            .valid("zeroex-v4", "seaport", "looks-rare", "x2y2", "universe")
+            .valid("zeroex-v4", "seaport", "looks-rare", "x2y2", "universe", "forward")
             .default("seaport")
             .description("Exchange protocol used to create order. Example: `seaport`"),
           orderbook: Joi.string()
@@ -681,6 +686,107 @@ export const getExecuteBidV4Options: RouteOptions = {
                       collection && params.excludeFlaggedTokens && !attributeKey && !attributeValue
                         ? collection
                         : undefined,
+                    isNonFlagged: params.excludeFlaggedTokens,
+                    orderbook: params.orderbook,
+                    source,
+                  },
+                },
+              },
+              orderIndex: i,
+            });
+
+            // Go on with the next bid
+            continue;
+          }
+
+          case "forward": {
+            if (!["reservoir"].includes(params.orderbook)) {
+              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
+            }
+
+            let order: Sdk.Forward.Order | undefined;
+            if (token) {
+              const [contract, tokenId] = token.split(":");
+              order = await forwardBuyToken.build({
+                ...params,
+                maker,
+                contract,
+                tokenId,
+              });
+            } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
+              order = await forwardBuyAttribute.build({
+                ...params,
+                maker,
+                collection,
+                attributes: [
+                  {
+                    key: attributeKey,
+                    value: attributeValue,
+                  },
+                ],
+              });
+            } else if (collection) {
+              order = await forwardBuyCollection.build({
+                ...params,
+                maker,
+                collection,
+              });
+            } else {
+              throw Boom.internal("Wrong metadata");
+            }
+
+            if (!order) {
+              throw Boom.internal("Failed to generate order");
+            }
+
+            // Check the maker's approval
+            let approvalTx: TxData | undefined;
+            const wethApproval = await weth.getAllowance(
+              maker,
+              Sdk.Forward.Addresses.Exchange[config.chainId]
+            );
+            if (bn(wethApproval).lt(bn(order.params.unitPrice).mul(order.params.amount))) {
+              approvalTx = weth.approveTransaction(
+                maker,
+                Sdk.Forward.Addresses.Exchange[config.chainId]
+              );
+            }
+
+            steps[0].items.push({
+              status: !wrapEthTx ? "complete" : "incomplete",
+              data: wrapEthTx,
+              orderIndex: i,
+            });
+            steps[1].items.push({
+              status: !approvalTx ? "complete" : "incomplete",
+              data: approvalTx,
+              orderIndex: i,
+            });
+            steps[2].items.push({
+              status: "incomplete",
+              data: {
+                sign: order.getSignatureData(),
+                post: {
+                  endpoint: "/order/v3",
+                  method: "POST",
+                  body: {
+                    order: {
+                      kind: "forward",
+                      data: {
+                        ...order.params,
+                      },
+                    },
+                    tokenSetId,
+                    attribute:
+                      collection && attributeKey && attributeValue
+                        ? {
+                            collection,
+                            key: attributeKey,
+                            value: attributeValue,
+                          }
+                        : undefined,
+                    collection:
+                      collection && !attributeKey && !attributeValue ? collection : undefined,
                     isNonFlagged: params.excludeFlaggedTokens,
                     orderbook: params.orderbook,
                     source,

@@ -7,6 +7,7 @@ import * as weth from "@/events-sync/data/weth";
 import * as blur from "@/events-sync/data/blur";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
 import * as element from "@/events-sync/data/element";
+import * as forward from "@/events-sync/data/forward";
 import * as foundation from "@/events-sync/data/foundation";
 import * as looksRare from "@/events-sync/data/looks-rare";
 import * as nftx from "@/events-sync/data/nftx";
@@ -25,7 +26,7 @@ import * as zora from "@/events-sync/data/zora";
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
 // handled (eg. persisted to the database and relayed for further
-// processing to any job queues).
+// processing to any job queues)
 
 export type EventDataKind =
   | "erc721-transfer"
@@ -57,9 +58,16 @@ export type EventDataKind =
   | "seaport-counter-incremented"
   | "rarible-match"
   | "element-erc721-sell-order-filled"
+  | "element-erc721-sell-order-filled-v2"
   | "element-erc721-buy-order-filled"
+  | "element-erc721-buy-order-filled-v2"
   | "element-erc1155-sell-order-filled"
+  | "element-erc1155-sell-order-filled-v2"
   | "element-erc1155-buy-order-filled"
+  | "element-erc1155-buy-order-filled-v2"
+  | "element-erc721-order-cancelled"
+  | "element-erc1155-order-cancelled"
+  | "element-hash-nonce-incremented"
   | "quixotic-order-filled"
   | "zora-ask-filled"
   | "zora-ask-created"
@@ -81,7 +89,10 @@ export type EventDataKind =
   | "universe-cancel"
   | "nftx-redeemed"
   | "nftx-minted"
-  | "blur-orders-matched";
+  | "blur-orders-matched"
+  | "forward-order-filled"
+  | "forward-order-cancelled"
+  | "forward-counter-incremented";
 
 export type EventData = {
   kind: EventDataKind;
@@ -123,9 +134,16 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       x2y2.orderInventory,
       rarible.match,
       element.erc721BuyOrderFilled,
+      element.erc721BuyOrderFilledV2,
       element.erc721SellOrderFilled,
+      element.erc721SellOrderFilledV2,
       element.erc1155BuyOrderFilled,
+      element.erc1155BuyOrderFilledV2,
       element.erc1155SellOrderFilled,
+      element.erc1155SellOrderFilledV2,
+      element.erc721OrderCancelled,
+      element.erc1155OrderCancelled,
+      element.hashNonceIncremented,
       quixotic.orderFulfilled,
       zora.askFilled,
       zora.askCreated,
@@ -148,6 +166,9 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       nftx.minted,
       nftx.redeemed,
       blur.ordersMatched,
+      forward.orderFilled,
+      forward.orderCancelled,
+      forward.counterIncremented,
     ];
   } else {
     return (
@@ -220,12 +241,26 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return rarible.match;
     case "element-erc721-sell-order-filled":
       return element.erc721SellOrderFilled;
+    case "element-erc721-sell-order-filled-v2":
+      return element.erc721SellOrderFilledV2;
     case "element-erc721-buy-order-filled":
       return element.erc721BuyOrderFilled;
+    case "element-erc721-buy-order-filled-v2":
+      return element.erc721BuyOrderFilledV2;
     case "element-erc1155-sell-order-filled":
       return element.erc1155SellOrderFilled;
+    case "element-erc1155-sell-order-filled-v2":
+      return element.erc1155SellOrderFilledV2;
     case "element-erc1155-buy-order-filled":
       return element.erc1155BuyOrderFilled;
+    case "element-erc1155-buy-order-filled-v2":
+      return element.erc1155BuyOrderFilledV2;
+    case "element-erc721-order-cancelled":
+      return element.erc721OrderCancelled;
+    case "element-erc1155-order-cancelled":
+      return element.erc1155OrderCancelled;
+    case "element-hash-nonce-incremented":
+      return element.hashNonceIncremented;
     case "quixotic-order-filled":
       return quixotic.orderFulfilled;
     case "zora-ask-filled":
@@ -270,6 +305,12 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return nftx.redeemed;
     case "blur-orders-matched":
       return blur.ordersMatched;
+    case "forward-order-filled":
+      return forward.orderFilled;
+    case "forward-order-cancelled":
+      return forward.orderCancelled;
+    case "forward-counter-incremented":
+      return forward.counterIncremented;
     default:
       return undefined;
   }

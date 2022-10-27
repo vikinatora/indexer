@@ -53,6 +53,25 @@ export const addPendingOrdersLooksRare = async (
   }
 };
 
+export const addPendingOrdersForward = async (
+  data: { order: Sdk.Forward.Order; schemaHash?: string; source?: string }[]
+) => {
+  if (config.arweaveRelayerKey && data.length) {
+    await redis.rpush(
+      PENDING_DATA_KEY,
+      ...data.map(({ order, schemaHash }) =>
+        JSON.stringify({
+          kind: "forward",
+          data: {
+            ...order.params,
+            schemaHash,
+          },
+        })
+      )
+    );
+  }
+};
+
 export const addPendingOrdersUniverse = async (
   data: { order: Sdk.Universe.Order; schemaHash?: string; source?: string }[]
 ) => {
@@ -81,6 +100,25 @@ export const addPendingOrdersZeroExV4 = async (
       ...data.map(({ order, schemaHash }) =>
         JSON.stringify({
           kind: "zeroex-v4",
+          data: {
+            ...order.params,
+            schemaHash,
+          },
+        })
+      )
+    );
+  }
+};
+
+export const addPendingOrdersElement = async (
+  data: { order: Sdk.Element.Order; schemaHash?: string; source?: string }[]
+) => {
+  if (config.arweaveRelayerKey && data.length) {
+    await redis.rpush(
+      PENDING_DATA_KEY,
+      ...data.map(({ order, schemaHash }) =>
+        JSON.stringify({
+          kind: "element",
           data: {
             ...order.params,
             schemaHash,
