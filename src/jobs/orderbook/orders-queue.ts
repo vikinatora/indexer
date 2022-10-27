@@ -224,7 +224,7 @@ export type GenericOrderInfo =
       info: orders.forward.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
-    }
+    };
 
 export const addToQueue = async (orderInfos: GenericOrderInfo[], prioritized = false) => {
   await queue.addBulk(
