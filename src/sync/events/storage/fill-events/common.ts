@@ -99,7 +99,7 @@ export const addEvents = async (events: Event[]) => {
           "is_primary"
         ) VALUES ${pgp.helpers.values(fillValues, columns)}
         ON CONFLICT DO NOTHING
-        RETURNING "order_kind", "order_id", "timestamp"
+        RETURNING "order_kind", "order_id", "timestamp", "order_source_id_int"
       )
       INSERT INTO "orders" (
         "id",
