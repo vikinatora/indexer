@@ -105,13 +105,15 @@ export const addEvents = async (events: Event[]) => {
         "id",
         "kind",
         "fillability_status",
-        "expiration"
+        "expiration",
+        "source_id_int"
       ) (
         SELECT
           "x"."order_id",
           "x"."order_kind",
           'filled'::order_fillability_status_t,
-          to_timestamp("x"."timestamp") AS "expiration"
+          to_timestamp("x"."timestamp") AS "expiration",
+          "x"."order_source_id_int"
         FROM "x"
         WHERE "x"."order_id" IS NOT NULL
       )
