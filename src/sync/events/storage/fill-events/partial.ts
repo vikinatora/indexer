@@ -103,7 +103,8 @@ export const addEventsPartial = async (events: Event[]) => {
           fill_events_2.order_kind,
           fill_events_2.order_id,
           fill_events_2.timestamp,
-          fill_events_2.amount
+          fill_events_2.amount,
+          fill_events_2.order_source_id_int
       )
       INSERT INTO orders (
         id,
