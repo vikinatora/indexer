@@ -15,10 +15,8 @@ export * as element from "@/orderbook/orders/element";
 // Imports
 
 import * as Sdk from "@reservoir0x/sdk";
-import * as SdkTypes from "@reservoir0x/sdk/dist/router/types";
-
-import * as NewSdk from "@reservoir0x/sdk-new";
-import * as NewSdkTypes from "@reservoir0x/sdk-new/dist/router/types";
+import * as SdkTypesV5 from "@reservoir0x/sdk/dist/router/v5/types";
+import * as SdkTypesV6 from "@reservoir0x/sdk/dist/router/v6/types";
 
 import { redb } from "@/common/db";
 import { config } from "@/config/index";
@@ -119,7 +117,7 @@ export const getOrderSourceByOrderKind = async (
 };
 
 // Support for filling listings
-export const generateListingDetails = (
+export const generateListingDetailsV5 = (
   order: {
     kind: OrderKind;
     currency: string;
@@ -132,7 +130,7 @@ export const generateListingDetails = (
     tokenId: string;
     amount?: number;
   }
-): SdkTypes.ListingDetails => {
+): SdkTypesV5.ListingDetails => {
   const common = {
     contractKind: token.kind,
     contract: token.contract,
@@ -206,7 +204,7 @@ export const generateListingDetails = (
 };
 
 // Support for filling bids
-export const generateBidDetails = async (
+export const generateBidDetailsV5 = async (
   order: {
     kind: OrderKind;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -218,7 +216,7 @@ export const generateBidDetails = async (
     tokenId: string;
     amount?: number;
   }
-): Promise<SdkTypes.BidDetails> => {
+): Promise<SdkTypesV5.BidDetails> => {
   const common = {
     contractKind: token.kind,
     contract: token.contract,
@@ -316,10 +314,8 @@ export const generateBidDetails = async (
   }
 };
 
-// NEW SDK METHODS
-
 // Support for filling listings
-export const generateListingDetailsNew = (
+export const generateListingDetailsV6 = (
   order: {
     kind: OrderKind;
     currency: string;
@@ -332,7 +328,7 @@ export const generateListingDetailsNew = (
     tokenId: string;
     amount?: number;
   }
-): NewSdkTypes.ListingDetails => {
+): SdkTypesV6.ListingDetails => {
   const common = {
     contractKind: token.kind,
     contract: token.contract,
@@ -346,7 +342,7 @@ export const generateListingDetailsNew = (
       return {
         kind: "foundation",
         ...common,
-        order: new NewSdk.Foundation.Order(config.chainId, order.rawData),
+        order: new Sdk.Foundation.Order(config.chainId, order.rawData),
       };
     }
 
@@ -354,7 +350,7 @@ export const generateListingDetailsNew = (
       return {
         kind: "looks-rare",
         ...common,
-        order: new NewSdk.LooksRare.Order(config.chainId, order.rawData),
+        order: new Sdk.LooksRare.Order(config.chainId, order.rawData),
       };
     }
 
@@ -362,7 +358,7 @@ export const generateListingDetailsNew = (
       return {
         kind: "x2y2",
         ...common,
-        order: new NewSdk.X2Y2.Order(config.chainId, order.rawData),
+        order: new Sdk.X2Y2.Order(config.chainId, order.rawData),
       };
     }
 
@@ -371,7 +367,7 @@ export const generateListingDetailsNew = (
       return {
         kind: "zeroex-v4",
         ...common,
-        order: new NewSdk.ZeroExV4.Order(config.chainId, order.rawData),
+        order: new Sdk.ZeroExV4.Order(config.chainId, order.rawData),
       };
     }
 
@@ -379,7 +375,7 @@ export const generateListingDetailsNew = (
       return {
         kind: "seaport",
         ...common,
-        order: new NewSdk.Seaport.Order(config.chainId, order.rawData),
+        order: new Sdk.Seaport.Order(config.chainId, order.rawData),
       };
     }
 
@@ -387,7 +383,7 @@ export const generateListingDetailsNew = (
       return {
         kind: "zora",
         ...common,
-        order: new NewSdk.Zora.Order(config.chainId, order.rawData),
+        order: new Sdk.Zora.Order(config.chainId, order.rawData),
       };
     }
 
@@ -395,7 +391,7 @@ export const generateListingDetailsNew = (
       return {
         kind: "universe",
         ...common,
-        order: new NewSdk.Universe.Order(config.chainId, order.rawData),
+        order: new Sdk.Universe.Order(config.chainId, order.rawData),
       };
     }
 
@@ -406,7 +402,7 @@ export const generateListingDetailsNew = (
 };
 
 // Support for filling bids
-export const generateBidDetailsNew = async (
+export const generateBidDetailsV6 = async (
   order: {
     kind: OrderKind;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -418,7 +414,7 @@ export const generateBidDetailsNew = async (
     tokenId: string;
     amount?: number;
   }
-): Promise<NewSdkTypes.BidDetails> => {
+): Promise<SdkTypesV6.BidDetails> => {
   const common = {
     contractKind: token.kind,
     contract: token.contract,
@@ -431,7 +427,7 @@ export const generateBidDetailsNew = async (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const extraArgs: any = {};
 
-      const sdkOrder = new NewSdk.Seaport.Order(config.chainId, order.rawData);
+      const sdkOrder = new Sdk.Seaport.Order(config.chainId, order.rawData);
       if (sdkOrder.params.kind?.includes("token-list")) {
         // When filling a "token-list" order, we also need to pass in the
         // full list of tokens the order was made on (in order to be able
@@ -462,7 +458,7 @@ export const generateBidDetailsNew = async (
     }
 
     case "looks-rare": {
-      const sdkOrder = new NewSdk.LooksRare.Order(config.chainId, order.rawData);
+      const sdkOrder = new Sdk.LooksRare.Order(config.chainId, order.rawData);
       return {
         kind: "looks-rare",
         ...common,
@@ -472,7 +468,7 @@ export const generateBidDetailsNew = async (
 
     case "zeroex-v4-erc721":
     case "zeroex-v4-erc1155": {
-      const sdkOrder = new NewSdk.ZeroExV4.Order(config.chainId, order.rawData);
+      const sdkOrder = new Sdk.ZeroExV4.Order(config.chainId, order.rawData);
       return {
         kind: "zeroex-v4",
         ...common,
@@ -481,7 +477,7 @@ export const generateBidDetailsNew = async (
     }
 
     case "x2y2": {
-      const sdkOrder = new NewSdk.X2Y2.Order(config.chainId, order.rawData);
+      const sdkOrder = new Sdk.X2Y2.Order(config.chainId, order.rawData);
       return {
         kind: "x2y2",
         ...common,
@@ -490,7 +486,7 @@ export const generateBidDetailsNew = async (
     }
 
     case "sudoswap": {
-      const sdkOrder = new NewSdk.Sudoswap.Order(config.chainId, order.rawData);
+      const sdkOrder = new Sdk.Sudoswap.Order(config.chainId, order.rawData);
       return {
         kind: "sudoswap",
         ...common,
@@ -499,7 +495,7 @@ export const generateBidDetailsNew = async (
     }
 
     case "universe": {
-      const sdkOrder = new NewSdk.Universe.Order(config.chainId, order.rawData);
+      const sdkOrder = new Sdk.Universe.Order(config.chainId, order.rawData);
       return {
         kind: "universe",
         ...common,
