@@ -16,12 +16,15 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     connectOptions: {
       transport: WebSocket,
     },
+    onError: async (error) => {
+      logger.error("opensea-websocket", `error=${error}`);
+    },
   });
 
   client.onItemListed("*", async (event) => {
     logger.info("opensea-websocket", `onItemListed Event. event=${JSON.stringify(event)}`);
 
-    const [contract, tokenId] = event.payload.item.nft_id.split("/");
+    const [, contract, tokenId] = event.payload.item.nft_id.split("/");
 
     const orderInfo: orderbookOrders.GenericOrderInfo = {
       kind: "seaport",
