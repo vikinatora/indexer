@@ -21,6 +21,10 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     },
   });
 
+  client.connect();
+
+  logger.info("opensea-websocket", `Connected to opensea ${network} stream API`);
+
   client.onItemListed("*", async (event) => {
     logger.info("opensea-websocket", `onItemListed Event. event=${JSON.stringify(event)}`);
 
