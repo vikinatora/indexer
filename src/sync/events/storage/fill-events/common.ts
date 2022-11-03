@@ -4,7 +4,14 @@ import { DbEvent, Event } from "@/events-sync/storage/fill-events";
 
 export const addEvents = async (events: Event[]) => {
   const fillValues: DbEvent[] = [];
+  const uniqueOrderIds = new Set<string>();
+
   for (const event of events) {
+    if (event.orderId && !uniqueOrderIds.has(event.orderId)) {
+      uniqueOrderIds.add(event.orderId);
+      continue;
+    }
+
     fillValues.push({
       address: toBuffer(event.baseEventParams.address),
       block: event.baseEventParams.block,
