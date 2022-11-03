@@ -21,6 +21,7 @@ import { redis } from "@/common/redis";
 import { getNetworkSettings } from "@/config/network";
 import { Collections } from "@/models/collections";
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport/types";
+import * as commonHelpers from "@/orderbook/orders/common/helpers";
 
 export type OrderInfo =
   | {
@@ -91,17 +92,13 @@ export const save = async (
         `
         WITH x AS (
           UPDATE orders
-          SET 
-            raw_data = $/rawData/,
-            nonce = $/nonce/
+          SET raw_data = $/rawData/
           WHERE orders.id = $/id/
           AND raw_data IS NULL
         )
-        SELECT 1 FROM orders WHERE orders.id = $/id/
-`,
+        SELECT 1 FROM orders WHERE orders.id = $/id/`,
         {
           id,
-          nonce: order.params.counter,
           rawData: order.params,
         }
       );
@@ -397,7 +394,7 @@ export const save = async (
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
-        const seaportBidPercentageThreshold = 90;
+        const seaportBidPercentageThreshold = 80;
 
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
@@ -416,7 +413,7 @@ export const save = async (
             }
           }
         } catch (error) {
-          logger.error(
+          logger.warn(
             "orders-seaport-save",
             `Bid value validation - error. orderId=${id}, contract=${info.contract}, tokenId=${tokenId}, error=${error}`
           );
@@ -721,6 +718,8 @@ export const save = async (
         }
       }
 
+      const nonce = await commonHelpers.getMinNonce("seaport", orderParams.offerer);
+
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
       const validTo = endTime
         ? `date_trunc('seconds', to_timestamp(${orderParams.endTime}))`
@@ -746,7 +745,7 @@ export const save = async (
         needs_conversion: needsConversion,
         quantity_remaining: orderParams.amount.toString(),
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
-        nonce: null,
+        nonce: nonce.toString(),
         source_id_int: source.id,
         is_reservoir: null,
         contract: toBuffer(orderParams.contract),

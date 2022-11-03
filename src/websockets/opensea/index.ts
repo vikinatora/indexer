@@ -5,10 +5,10 @@ import { logger } from "@/common/logger";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
 import * as orders from "@/orderbook/orders";
+import { toTime } from "@/common/utils";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
-  logger.info("opensea-websocket", `Subscribing to opensea ${network} stream API`);
 
   const client = new OpenSeaStreamClient({
     token: config.openSeaApiKey,
@@ -17,7 +17,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       transport: WebSocket,
     },
     onError: async (error) => {
-      logger.error("opensea-websocket", `error=${error}`);
+      logger.error("opensea-websocket", `network=${network}, error=${error}`);
     },
   });
 
@@ -42,8 +42,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
             price: event.payload.base_price,
             paymentToken: event.payload.payment_token.address,
             amount: event.payload.quantity,
-            startTime: Math.floor(new Date(event.payload.listing_date).getTime() / 1000),
-            endTime: Math.floor(new Date(event.payload.expiration_date).getTime() / 1000),
+            startTime: toTime(event.payload.listing_date),
+            endTime: toTime(event.payload.listing_date),
             contract,
             tokenId,
             offerer: event.payload.maker.address,
