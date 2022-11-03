@@ -92,7 +92,9 @@ export const save = async (
         `
         WITH x AS (
           UPDATE orders
-          SET raw_data = $/rawData/
+          SET
+            raw_data = $/rawData/,
+            updated_at = now()
           WHERE orders.id = $/id/
           AND raw_data IS NULL
         )
