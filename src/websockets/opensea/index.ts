@@ -28,30 +28,50 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
   client.onItemListed("*", async (event) => {
     logger.info("opensea-websocket", `onItemListed Event. event=${JSON.stringify(event)}`);
 
-    const [, contract, tokenId] = event.payload.item.nft_id.split("/");
+    if (getSupportedChainName() === event.payload.item.chain.name) {
+      const [, contract, tokenId] = event.payload.item.nft_id.split("/");
 
-    const orderInfo: orderbookOrders.GenericOrderInfo = {
-      kind: "seaport",
-      info: {
-        kind: "partial",
-        orderParams: {
-          kind: "single-token",
-          side: "sell",
-          hash: event.payload.order_hash,
-          price: event.payload.base_price,
-          paymentToken: event.payload.payment_token.address,
-          amount: event.payload.quantity,
-          startTime: Math.floor(new Date(event.payload.listing_date).getTime() / 1000),
-          endTime: Math.floor(new Date(event.payload.expiration_date).getTime() / 1000),
-          contract,
-          tokenId,
-          offerer: event.payload.maker.address,
-        } as PartialOrderComponents,
-      } as orders.seaport.OrderInfo,
-      relayToArweave: false,
-      validateBidValue: true,
-    };
+      const orderInfo: orderbookOrders.GenericOrderInfo = {
+        kind: "seaport",
+        info: {
+          kind: "partial",
+          orderParams: {
+            kind: "single-token",
+            side: "sell",
+            hash: event.payload.order_hash,
+            price: event.payload.base_price,
+            paymentToken: event.payload.payment_token.address,
+            amount: event.payload.quantity,
+            startTime: Math.floor(new Date(event.payload.listing_date).getTime() / 1000),
+            endTime: Math.floor(new Date(event.payload.expiration_date).getTime() / 1000),
+            contract,
+            tokenId,
+            offerer: event.payload.maker.address,
+          } as PartialOrderComponents,
+        } as orders.seaport.OrderInfo,
+        relayToArweave: false,
+        validateBidValue: true,
+      };
 
-    await orderbookOrders.addToQueue([orderInfo]);
+      await orderbookOrders.addToQueue([orderInfo]);
+    } else {
+      logger.info(
+        "opensea-websocket",
+        `Ignored onItemListed Event. event=${JSON.stringify(event)}`
+      );
+    }
   });
 }
+
+const getSupportedChainName = () => {
+  switch (config.chainId) {
+    case 1:
+      return "ethereum";
+    case 5:
+      return "goerli";
+    case 137:
+      return "polygon";
+    default:
+      return "unknown";
+  }
+};

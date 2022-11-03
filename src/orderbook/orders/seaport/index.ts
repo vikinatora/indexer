@@ -86,10 +86,25 @@ export const save = async (
         });
       }
 
-      // Check: order doesn't already exist
-      const orderExists = await idb.oneOrNone(`SELECT 1 FROM orders WHERE orders.id = $/id/`, {
-        id,
-      });
+      // Check: order doesn't already exist or partial order
+      const orderExists = await idb.oneOrNone(
+        `
+        WITH x AS (
+          UPDATE orders
+          SET 
+            raw_data = $/rawData/,
+            nonce = $/nonce/
+          WHERE orders.id = $/id/
+          AND raw_data IS NULL
+        )
+        SELECT 1 FROM orders WHERE orders.id = $/id/
+`,
+        {
+          id,
+          nonce: order.params.counter,
+          rawData: order.params,
+        }
+      );
       if (orderExists) {
         return results.push({
           id,
