@@ -26,9 +26,12 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
   logger.info("opensea-websocket", `Connected to opensea ${network} stream API`);
 
   client.onItemListed("*", async (event) => {
-    logger.info("opensea-websocket", `onItemListed Event. event=${JSON.stringify(event)}`);
-
     if (getSupportedChainName() === event.payload.item.chain.name) {
+      const currenTime = Math.floor(Date.now() / 1000);
+      if (currenTime % 10 === 0) {
+        logger.info("opensea-websocket", `onItemListed Event. event=${JSON.stringify(event)}`);
+      }
+
       const [, contract, tokenId] = event.payload.item.nft_id.split("/");
 
       const orderInfo: orderbookOrders.GenericOrderInfo = {
@@ -54,11 +57,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       };
 
       await orderbookOrders.addToQueue([orderInfo]);
-    } else {
-      logger.info(
-        "opensea-websocket",
-        `Ignored onItemListed Event. event=${JSON.stringify(event)}`
-      );
     }
   });
 }
