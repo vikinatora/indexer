@@ -43,7 +43,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
             paymentToken: event.payload.payment_token.address,
             amount: event.payload.quantity,
             startTime: toTime(event.payload.listing_date),
-            endTime: toTime(event.payload.listing_date),
+            endTime: toTime(event.payload.expiration_date),
             contract,
             tokenId,
             offerer: event.payload.maker.address,
