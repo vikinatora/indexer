@@ -45,6 +45,13 @@ if (config.doBackgroundWork) {
             break;
           }
 
+          case "forward": {
+            const result = await orders.forward.save([info as orders.forward.OrderInfo]);
+            logger.info(QUEUE_NAME, `[forward] Order save result: ${JSON.stringify(result)}`);
+
+            break;
+          }
+
           case "cryptopunks": {
             result = await orders.cryptopunks.save([info as orders.cryptopunks.OrderInfo]);
             break;
@@ -189,6 +196,12 @@ export type GenericOrderInfo =
   | {
       kind: "element";
       info: orders.element.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "forward";
+      info: orders.forward.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     };
