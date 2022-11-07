@@ -11,6 +11,7 @@ export * as zeroExV4 from "@/orderbook/orders/zeroex-v4";
 export * as zora from "@/orderbook/orders/zora";
 export * as universe from "@/orderbook/orders/universe";
 export * as element from "@/orderbook/orders/element";
+export * as rarible from "@/orderbook/orders/rarible";
 
 // Imports
 
@@ -48,7 +49,8 @@ export type OrderKind =
   | "universe"
   | "nftx"
   | "blur"
-  | "forward";
+  | "forward"
+  | "rarible";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -213,6 +215,14 @@ export const generateListingDetailsV5 = (
       };
     }
 
+    case "rarible": {
+      return {
+        kind: "rarible",
+        ...common,
+        order: new Sdk.Rarible.Order(config.chainId, order.rawData),
+      };
+    }
+
     default: {
       throw new Error("Unsupported order kind");
     }
@@ -324,6 +334,18 @@ export const generateBidDetailsV5 = async (
       };
     }
 
+    case "rarible": {
+      const sdkOrder = new Sdk.Rarible.Order(config.chainId, order.rawData);
+      return {
+        kind: "rarible",
+        ...common,
+        order: sdkOrder,
+        extraArgs: {
+          amount: sdkOrder.params.take.value,
+        },
+      };
+    }
+
     default: {
       throw new Error("Unsupported order kind");
     }
@@ -426,6 +448,14 @@ export const generateListingDetailsV6 = (
         kind: "universe",
         ...common,
         order: new Sdk.Universe.Order(config.chainId, order.rawData),
+      };
+    }
+
+    case "rarible": {
+      return {
+        kind: "rarible",
+        ...common,
+        order: new Sdk.Rarible.Order(config.chainId, order.rawData),
       };
     }
 
@@ -550,6 +580,14 @@ export const generateBidDetailsV6 = async (
         kind: "universe",
         ...common,
         order: sdkOrder,
+      };
+    }
+
+    case "rarible": {
+      return {
+        kind: "rarible",
+        ...common,
+        order: new Sdk.Rarible.Order(config.chainId, order.rawData),
       };
     }
 

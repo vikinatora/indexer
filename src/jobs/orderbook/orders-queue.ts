@@ -97,6 +97,13 @@ if (config.doBackgroundWork) {
             break;
           }
 
+          case "rarible": {
+            const result = await orders.rarible.save([info as orders.rarible.OrderInfo]);
+            logger.info(QUEUE_NAME, `[rarible] Order save result: ${JSON.stringify(result)}`);
+
+            break;
+          }
+
           case "element": {
             result = await orders.element.save([info as orders.element.OrderInfo], relayToArweave);
             break;
@@ -202,6 +209,12 @@ export type GenericOrderInfo =
   | {
       kind: "forward";
       info: orders.forward.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "rarible";
+      info: orders.rarible.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     };

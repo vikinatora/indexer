@@ -38,6 +38,9 @@ import * as forwardBuyAttribute from "@/orderbook/orders/forward/build/buy/attri
 import * as forwardBuyToken from "@/orderbook/orders/forward/build/buy/token";
 import * as forwardBuyCollection from "@/orderbook/orders/forward/build/buy/collection";
 
+//Rarible
+import * as raribleBuyToken from "@/orderbook/orders/rarible/build/buy/token";
+
 const version = "v4";
 
 export const getExecuteBidV4Options: RouteOptions = {
@@ -93,7 +96,7 @@ export const getExecuteBidV4Options: RouteOptions = {
             .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
             .required(),
           orderKind: Joi.string()
-            .valid("zeroex-v4", "seaport", "looks-rare", "x2y2", "universe", "forward")
+            .valid("zeroex-v4", "seaport", "looks-rare", "x2y2", "universe", "forward", "rarible")
             .default("seaport")
             .description("Exchange protocol used to create order. Example: `seaport`"),
           orderbook: Joi.string()
@@ -788,6 +791,86 @@ export const getExecuteBidV4Options: RouteOptions = {
                     collection:
                       collection && !attributeKey && !attributeValue ? collection : undefined,
                     isNonFlagged: params.excludeFlaggedTokens,
+                    orderbook: params.orderbook,
+                    source,
+                  },
+                },
+              },
+              orderIndex: i,
+            });
+
+            // Go on with the next bid
+            continue;
+          }
+
+          case "rarible": {
+            if (!["reservoir", "rarible"].includes(params.orderbook)) {
+              throw Boom.badRequest("Only `reservoir` and `rarible` are supported as orderbooks");
+            }
+            if (params.fees?.length) {
+              throw Boom.badRequest("Rarible does not support custom fees");
+            }
+            if (params.excludeFlaggedTokens) {
+              throw Boom.badRequest("Rarible does not support token-list bids");
+            }
+
+            let order: Sdk.Rarible.Order | undefined;
+            if (token) {
+              const [contract, tokenId] = token.split(":");
+              order = await raribleBuyToken.build({
+                ...params,
+                maker,
+                contract,
+                tokenId,
+              });
+            } else {
+              throw Boom.badRequest("Rarible only supports single-token");
+            }
+
+            if (!order) {
+              throw Boom.internal("Failed to generate order");
+            }
+
+            // Check the maker's approval
+            let approvalTx: TxData | undefined;
+            const wethApproval = await weth.getAllowance(
+              maker,
+              Sdk.Rarible.Addresses.ERC20TransferProxy[config.chainId]
+            );
+            if (bn(wethApproval).lt(bn(order.params.make.value))) {
+              approvalTx = weth.approveTransaction(
+                maker,
+                Sdk.Rarible.Addresses.ERC20TransferProxy[config.chainId]
+              );
+            }
+
+            steps[0].items.push({
+              status: !wrapEthTx ? "complete" : "incomplete",
+              data: wrapEthTx,
+              orderIndex: i,
+            });
+            steps[1].items.push({
+              status: !approvalTx ? "complete" : "incomplete",
+              data: approvalTx,
+              orderIndex: i,
+            });
+            steps[2].items.push({
+              status: "incomplete",
+              data: {
+                sign: order.getSignatureData(),
+                post: {
+                  endpoint: "/order/v3",
+                  method: "POST",
+                  body: {
+                    order: {
+                      kind: "rarible",
+                      data: {
+                        ...order.params,
+                      },
+                    },
+                    tokenSetId,
+                    collection:
+                      collection && !attributeKey && !attributeValue ? collection : undefined,
                     orderbook: params.orderbook,
                     source,
                   },
