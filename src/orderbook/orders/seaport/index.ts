@@ -25,7 +25,7 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 
 export type OrderInfo =
   | {
-      kind?: "full";
+      kind: "full";
       orderParams: Sdk.Seaport.Types.OrderComponents;
       metadata: OrderMetadata;
       isReservoir?: boolean;
@@ -36,7 +36,7 @@ export type OrderInfo =
     };
 
 export declare type PartialOrderComponents = {
-  kind?: OrderKind;
+  kind: OrderKind;
   side: "buy" | "sell";
   hash: string;
   price: string;
@@ -45,9 +45,9 @@ export declare type PartialOrderComponents = {
   startTime: number;
   endTime: number;
   contract: string;
-  tokenId: string;
+  tokenId?: string;
   offerer: string;
-  listingType: string | null;
+  isDynamic?: boolean;
 };
 
 type SaveResult = {
@@ -643,6 +643,11 @@ export const save = async (
         }
       }
 
+      if (orderParams.side === "buy") {
+        const feeAmount = bn(price).mul(feeBps).div(10000);
+        value = bn(price).sub(feeAmount);
+      }
+
       // Handle: source
       const sources = await Sources.getInstance();
       const source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
@@ -751,7 +756,7 @@ export const save = async (
         conduit: toBuffer(new Sdk.Seaport.Exchange(config.chainId).deriveConduit(conduitKey)),
         fee_bps: feeBps,
         fee_breakdown: feeBreakdown || null,
-        dynamic: _.isNull(orderParams.listingType) ? null : true,
+        dynamic: orderParams.isDynamic ?? null,
         raw_data: null,
         expiration: validTo,
         missing_royalties: null,
