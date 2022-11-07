@@ -219,6 +219,7 @@ export const save = async (
         expiration: validTo,
         missing_royalties: null,
         normalized_value: null,
+        currency_normalized_value: null,
       });
 
       const unfillable =
