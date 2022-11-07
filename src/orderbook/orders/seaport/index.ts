@@ -397,7 +397,7 @@ export const save = async (
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
-        const seaportBidPercentageThreshold = 75;
+        const seaportBidPercentageThreshold = 90;
 
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
@@ -462,7 +462,6 @@ export const save = async (
         expiration: validTo,
         missing_royalties: null,
         normalized_value: null,
-        currency_normalized_value: null,
       });
 
       const unfillable =
@@ -757,7 +756,6 @@ export const save = async (
         expiration: validTo,
         missing_royalties: null,
         normalized_value: null,
-        currency_normalized_value: null,
       });
 
       const unfillable =
