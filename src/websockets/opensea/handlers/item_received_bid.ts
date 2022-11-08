@@ -24,5 +24,6 @@ export const handleEvent = (
     contract,
     tokenId,
     offerer: payload.maker.address,
+    collectionSlug: payload.collection.slug,
   };
 };
