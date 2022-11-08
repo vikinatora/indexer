@@ -152,6 +152,8 @@ export const getTokensV5Options: RouteOptions = {
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
+              quantityFilled: Joi.number().unsafe().allow(null),
+              quantityRemaining: Joi.number().unsafe().allow(null),
               source: Joi.object().allow(null),
             },
             topBid: Joi.object({
@@ -343,7 +345,21 @@ export const getTokensV5Options: RouteOptions = {
               AND nb.token_id = t.token_id
               AND nb.amount > 0
             LIMIT 1
-          ) AS owner
+          ) AS owner,
+          (
+            SELECT
+              o.quantity_filled
+            FROM orders o
+            WHERE o.id = t.floor_sell_id
+            LIMIT 1
+          ) AS floor_sell_quantity_filled,
+          (
+            SELECT
+              o.quantity_remaining
+            FROM orders o
+            WHERE o.id = t.floor_sell_id
+            LIMIT 1
+          ) AS floor_sell_quantity_remaining
           ${selectAttributes}
           ${selectTopBid}
         FROM tokens t
@@ -654,6 +670,8 @@ export const getTokensV5Options: RouteOptions = {
               maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
+              quantityFilled: r.floor_sell_id ? r.floor_sell_quantity_filled : null,
+              quantityRemaining: r.floor_sell_id ? r.floor_sell_quantity_remaining : null,
               source: {
                 id: floorSellSource?.address,
                 domain: floorSellSource?.domain,
