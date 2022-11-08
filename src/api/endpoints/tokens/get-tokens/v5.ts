@@ -545,7 +545,6 @@ export const getTokensV5Options: RouteOptions = {
 
       baseQuery += ` LIMIT $/limit/`;
 
-      // console.log(pgPromise.as.format(baseQuery, query));
       const rawResult = await redb.manyOrNone(baseQuery, query);
 
       /** Depending on how we sorted, we use that sorting key to determine the next page of results
