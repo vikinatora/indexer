@@ -594,36 +594,49 @@ export const save = async (
         }
 
         case "contract-wide": {
-          const collectionResult = await redb.oneOrNone(
-            `
+          if (getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)) {
+            const collectionResult = await redb.oneOrNone(
+              `
                   SELECT
                     collections.id,
                     collections.token_set_id
                   FROM collections
                   WHERE collections.slug = $/collectionSlug/
                 `,
-            {
-              collectionSlug: orderParams.collectionSlug,
+              {
+                collectionSlug: orderParams.collectionSlug,
+              }
+            );
+
+            if (collectionResult?.token_set_id) {
+              tokenSetId = collectionResult.token_set_id;
+            } else {
+              logger.warn(
+                "orders-seaport-save",
+                `No collection found for slug. collectionSlug=${
+                  orderParams.collectionSlug
+                }, orderParams=${JSON.stringify(orderParams)}`
+              );
             }
-          );
+          } else {
+            tokenSetId = `contract:${orderParams.contract}`;
+          }
 
-          if (collectionResult?.token_set_id) {
-            tokenSetId = collectionResult.token_set_id;
-
-            if (tokenSetId!.startsWith("contract:")) {
+          if (tokenSetId) {
+            if (tokenSetId.startsWith("contract:")) {
               await tokenSet.contractWide.save([
                 {
-                  id: tokenSetId!,
+                  id: tokenSetId,
                   schemaHash,
                   contract: orderParams.contract,
                 },
               ]);
-            } else if (tokenSetId!.startsWith("range:")) {
-              const [, , startTokenId, endTokenId] = tokenSetId!.split(":");
+            } else if (tokenSetId.startsWith("range:")) {
+              const [, , startTokenId, endTokenId] = tokenSetId.split(":");
 
               await tokenSet.tokenRange.save([
                 {
-                  id: tokenSetId!,
+                  id: tokenSetId,
                   schemaHash,
                   contract: orderParams.contract,
                   startTokenId,
@@ -631,13 +644,6 @@ export const save = async (
                 },
               ]);
             }
-          } else {
-            logger.warn(
-              "orders-seaport-save",
-              `No collection found for slug. collectionSlug=${
-                orderParams.collectionSlug
-              }, orderParams=${JSON.stringify(orderParams)}`
-            );
           }
 
           break;
