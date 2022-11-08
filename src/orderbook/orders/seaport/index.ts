@@ -580,7 +580,7 @@ export const save = async (
                  JOIN tokens ON collections.id = tokens.collection_id
                  WHERE tokens.contract = $/contract/ AND tokens.token_id = $/tokenId/`,
           {
-            contract: orderParams.contract,
+            contract: toBuffer(orderParams.contract),
             tokenId: orderParams.tokenId,
           }
         );
@@ -594,7 +594,7 @@ export const save = async (
                   WHERE contract = $/contract/ AND slug = $/collectionSlug/
                 `,
           {
-            contract: orderParams.contract,
+            contract: toBuffer(orderParams.contract),
             collectionSlug: orderParams.collectionSlug,
           }
         );
