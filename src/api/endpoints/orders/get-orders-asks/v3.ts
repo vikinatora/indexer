@@ -266,7 +266,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
           orders.value,
           orders.currency_price,
           orders.currency_value,
-          ordes.normalized_value,
+          orders.normalized_value,
           orders.currency_normalized_value,
           dynamic,
           DATE_PART('epoch', LOWER(orders.valid_between)) AS valid_from,
@@ -303,8 +303,9 @@ export const getOrdersAsksV3Options: RouteOptions = {
 
       // Filters
       const conditions: string[] = [`orders.side = 'sell'`];
-      let orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+
       let communityFilter = "";
+      let orderStatusFilter;
 
       if (query.ids) {
         if (Array.isArray(query.ids)) {
@@ -312,6 +313,8 @@ export const getOrdersAsksV3Options: RouteOptions = {
         } else {
           conditions.push(`orders.id = $/ids/`);
         }
+      } else {
+        orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
       }
 
       if (query.token) {
@@ -380,7 +383,9 @@ export const getOrdersAsksV3Options: RouteOptions = {
         );
       }
 
-      conditions.push(orderStatusFilter);
+      if (orderStatusFilter) {
+        conditions.push(orderStatusFilter);
+      }
 
       if (query.continuation) {
         const [priceOrCreatedAt, id] = splitContinuation(
