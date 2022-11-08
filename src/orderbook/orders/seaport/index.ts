@@ -588,10 +588,10 @@ export const save = async (
         collectionResult = await redb.oneOrNone(
           `
                   SELECT
-                    royalties
-                    collections.token_set_id
+                    royalties,
+                    token_set_id
                   FROM collections
-                  WHERE tokens.contract = $/contract/ AND collections.slug = $/collectionSlug/
+                  WHERE contract = $/contract/ AND slug = $/collectionSlug/
                 `,
           {
             contract: orderParams.contract,
@@ -602,7 +602,7 @@ export const save = async (
         if (!collectionResult) {
           logger.warn(
             "orders-seaport-save",
-            `No collection found for slug. collectionSlug=${
+            `handlePartialOrder - No collection found for slug. collectionSlug=${
               orderParams.collectionSlug
             }, orderParams=${JSON.stringify(orderParams)}`
           );
@@ -703,7 +703,9 @@ export const save = async (
       } else {
         logger.warn(
           "orders-seaport-save",
-          `Unable to calculate royalties., orderParams=${JSON.stringify(orderParams)}`
+          `handlePartialOrder - Unable to calculate royalties., orderParams=${JSON.stringify(
+            orderParams
+          )}`
         );
       }
 
