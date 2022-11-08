@@ -11,6 +11,7 @@ export * as zeroExV4 from "@/orderbook/orders/zeroex-v4";
 export * as zora from "@/orderbook/orders/zora";
 export * as universe from "@/orderbook/orders/universe";
 export * as element from "@/orderbook/orders/element";
+export * as rarible from "@/orderbook/orders/rarible";
 
 // Imports
 
@@ -338,6 +339,9 @@ export const generateBidDetailsV5 = async (
         kind: "rarible",
         ...common,
         order: sdkOrder,
+        extraArgs: {
+          amount: sdkOrder.params.take.value,
+        },
       };
     }
 
