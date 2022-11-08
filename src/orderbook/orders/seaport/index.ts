@@ -48,6 +48,9 @@ export declare type PartialOrderComponents = {
   tokenId?: string;
   offerer: string;
   isDynamic?: boolean;
+  collectionSlug: string;
+  attributeKey?: string;
+  attributeValue?: string;
 };
 
 type SaveResult = {
@@ -591,6 +594,52 @@ export const save = async (
         }
 
         case "contract-wide": {
+          const collectionResult = await redb.oneOrNone(
+            `
+                  SELECT
+                    collections.id,
+                    collections.token_set_id
+                  FROM collections
+                  WHERE collections.slug = $/collectionSlug/
+                `,
+            {
+              collectionSlug: orderParams.collectionSlug,
+            }
+          );
+
+          if (collectionResult?.token_set_id) {
+            tokenSetId = collectionResult.token_set_id;
+
+            if (tokenSetId!.startsWith("contract:")) {
+              await tokenSet.contractWide.save([
+                {
+                  id: tokenSetId!,
+                  schemaHash,
+                  contract: orderParams.contract,
+                },
+              ]);
+            } else if (tokenSetId!.startsWith("range:")) {
+              const [, , startTokenId, endTokenId] = tokenSetId!.split(":");
+
+              await tokenSet.tokenRange.save([
+                {
+                  id: tokenSetId!,
+                  schemaHash,
+                  contract: orderParams.contract,
+                  startTokenId,
+                  endTokenId,
+                },
+              ]);
+            }
+          } else {
+            logger.warn(
+              "orders-seaport-save",
+              `No collection found for slug. collectionSlug=${
+                orderParams.collectionSlug
+              }, orderParams=${JSON.stringify(orderParams)}`
+            );
+          }
+
           break;
         }
 

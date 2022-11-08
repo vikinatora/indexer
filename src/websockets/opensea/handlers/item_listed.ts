@@ -24,5 +24,6 @@ export const handleEvent = (payload: ItemListedEventPayload): PartialOrderCompon
     tokenId,
     offerer: payload.maker.address,
     isDynamic: !_.isNull(payload.listing_type),
+    collectionSlug: payload.collection.slug,
   };
 };

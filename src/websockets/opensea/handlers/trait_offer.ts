@@ -1,11 +1,13 @@
 import { now, toTime } from "@/common/utils";
 
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
-import { CollectionOfferEventPayload } from "@opensea/stream-js";
+import { TraitOfferEventPayload } from "@opensea/stream-js";
 
-export const handleEvent = (payload: CollectionOfferEventPayload): PartialOrderComponents => {
+export const handleEvent = (payload: TraitOfferEventPayload): PartialOrderComponents => {
+  const traitCriteria = payload.trait_criteria as { trait_type: string; trait_name: string };
+
   return {
-    kind: "contract-wide",
+    kind: "token-list",
     side: "buy",
     hash: payload.order_hash,
     price: payload.base_price,
@@ -16,5 +18,7 @@ export const handleEvent = (payload: CollectionOfferEventPayload): PartialOrderC
     contract: (payload.asset_contract_criteria as { address: string }).address,
     offerer: payload.maker.address,
     collectionSlug: payload.collection.slug,
+    attributeKey: traitCriteria.trait_type,
+    attributeValue: traitCriteria.trait_name,
   };
 };

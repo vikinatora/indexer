@@ -4,6 +4,7 @@ import {
   ItemReceivedBidEventPayload,
   Network,
   OpenSeaStreamClient,
+  TraitOfferEventPayload,
 } from "@opensea/stream-js";
 import { WebSocket } from "ws";
 import { config } from "@/config/index";
@@ -12,6 +13,7 @@ import { ItemListedEventPayload } from "@opensea/stream-js/dist/types";
 import { handleEvent as handleItemListedEvent } from "@/websockets/opensea/handlers/item_listed";
 import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/handlers/item_received_bid";
 import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/handlers/collection_offer";
+import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
 
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
@@ -39,8 +41,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     "*",
     [
       EventType.ITEM_LISTED,
-      EventType.ITEM_RECEIVED_BID,
-      // EventType.COLLECTION_OFFER,
+      // EventType.ITEM_RECEIVED_BID,
+      EventType.COLLECTION_OFFER,
       // EventType.TRAIT_OFFER
     ],
     async (event) => {
@@ -76,6 +78,8 @@ const handleEvent = (type: EventType, payload: unknown): PartialOrderComponents 
       return handleItemReceivedBidEvent(payload as ItemReceivedBidEventPayload);
     case EventType.COLLECTION_OFFER:
       return handleCollectionOfferEvent(payload as CollectionOfferEventPayload);
+    case EventType.TRAIT_OFFER:
+      return handleTraitOfferEvent(payload as TraitOfferEventPayload);
     default:
       return null;
   }
