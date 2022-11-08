@@ -339,9 +339,6 @@ export const generateBidDetailsV5 = async (
         kind: "rarible",
         ...common,
         order: sdkOrder,
-        extraArgs: {
-          amount: sdkOrder.params.take.value,
-        },
       };
     }
 
