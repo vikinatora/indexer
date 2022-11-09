@@ -1792,7 +1792,7 @@ if (config.doBackgroundWork) {
 
           await redis.sadd("invalid_opensea_asks", sellOrder.id);
 
-          await idb.manyOrNone(
+          await idb.none(
             `
                 UPDATE orders SET
                   price = $/fixedPrice/,
