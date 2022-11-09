@@ -25,7 +25,7 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 
 export type OrderInfo =
   | {
-      kind?: "full";
+      kind: "full";
       orderParams: Sdk.Seaport.Types.OrderComponents;
       metadata: OrderMetadata;
       isReservoir?: boolean;
@@ -36,7 +36,7 @@ export type OrderInfo =
     };
 
 export declare type PartialOrderComponents = {
-  kind?: OrderKind;
+  kind: OrderKind;
   side: "buy" | "sell";
   hash: string;
   price: string;
@@ -45,9 +45,12 @@ export declare type PartialOrderComponents = {
   startTime: number;
   endTime: number;
   contract: string;
-  tokenId: string;
+  tokenId?: string;
   offerer: string;
-  listingType: string | null;
+  isDynamic?: boolean;
+  collectionSlug: string;
+  attributeKey?: string;
+  attributeValue?: string;
 };
 
 type SaveResult = {
@@ -397,7 +400,7 @@ export const save = async (
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
-        const seaportBidPercentageThreshold = 75;
+        const seaportBidPercentageThreshold = 90;
 
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
@@ -461,6 +464,8 @@ export const save = async (
         raw_data: order.params,
         expiration: validTo,
         missing_royalties: null,
+        normalized_value: null,
+        currency_normalized_value: null,
       });
 
       const unfillable =
@@ -565,6 +570,45 @@ export const save = async (
         }
       }
 
+      let collectionResult;
+
+      if (orderParams.tokenId) {
+        collectionResult = await redb.oneOrNone(
+          `SELECT 
+                    royalties
+                 FROM collections
+                 JOIN tokens ON collections.id = tokens.collection_id
+                 WHERE tokens.contract = $/contract/ AND tokens.token_id = $/tokenId/`,
+          {
+            contract: toBuffer(orderParams.contract),
+            tokenId: orderParams.tokenId,
+          }
+        );
+      } else {
+        collectionResult = await redb.oneOrNone(
+          `
+                  SELECT
+                    royalties,
+                    token_set_id
+                  FROM collections
+                  WHERE contract = $/contract/ AND slug = $/collectionSlug/
+                `,
+          {
+            contract: toBuffer(orderParams.contract),
+            collectionSlug: orderParams.collectionSlug,
+          }
+        );
+
+        if (!collectionResult) {
+          logger.warn(
+            "orders-seaport-save",
+            `handlePartialOrder - No collection found for slug. collectionSlug=${
+              orderParams.collectionSlug
+            }, orderParams=${JSON.stringify(orderParams)}`
+          );
+        }
+      }
+
       // Check and save: associated token set
       const schemaHash = generateSchemaHash();
 
@@ -589,6 +633,34 @@ export const save = async (
         }
 
         case "contract-wide": {
+          if (collectionResult?.token_set_id) {
+            tokenSetId = collectionResult.token_set_id;
+          }
+
+          if (tokenSetId) {
+            if (tokenSetId.startsWith("contract:")) {
+              await tokenSet.contractWide.save([
+                {
+                  id: tokenSetId,
+                  schemaHash,
+                  contract: orderParams.contract,
+                },
+              ]);
+            } else if (tokenSetId.startsWith("range:")) {
+              const [, , startTokenId, endTokenId] = tokenSetId.split(":");
+
+              await tokenSet.tokenRange.save([
+                {
+                  id: tokenSetId,
+                  schemaHash,
+                  contract: orderParams.contract,
+                  startTokenId,
+                  endTokenId,
+                },
+              ]);
+            }
+          }
+
           break;
         }
 
@@ -618,20 +690,8 @@ export const save = async (
         },
       ];
 
-      const collection = await redb.oneOrNone(
-        `SELECT 
-                    royalties
-                 FROM collections
-                 JOIN tokens ON collections.id = tokens.collection_id
-                 WHERE tokens.contract = $/contract/ AND tokens.token_id = $/tokenId/`,
-        {
-          contract: orderParams.contract,
-          tokenId: orderParams.tokenId,
-        }
-      );
-
-      if (collection) {
-        for (const royalty of collection.royalties) {
+      if (collectionResult) {
+        for (const royalty of collectionResult.royalties) {
           feeBps += royalty.bps;
 
           feeBreakdown.push({
@@ -640,6 +700,18 @@ export const save = async (
             recipient: royalty.recipient,
           });
         }
+      } else {
+        logger.warn(
+          "orders-seaport-save",
+          `handlePartialOrder - Unable to calculate royalties., orderParams=${JSON.stringify(
+            orderParams
+          )}`
+        );
+      }
+
+      if (orderParams.side === "buy") {
+        const feeAmount = bn(price).mul(feeBps).div(10000);
+        value = bn(price).sub(feeAmount);
       }
 
       // Handle: source
@@ -750,10 +822,12 @@ export const save = async (
         conduit: toBuffer(new Sdk.Seaport.Exchange(config.chainId).deriveConduit(conduitKey)),
         fee_bps: feeBps,
         fee_breakdown: feeBreakdown || null,
-        dynamic: _.isNull(orderParams.listingType) ? null : true,
+        dynamic: orderParams.isDynamic ?? null,
         raw_data: null,
         expiration: validTo,
         missing_royalties: null,
+        normalized_value: null,
+        currency_normalized_value: null,
       });
 
       const unfillable =

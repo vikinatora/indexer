@@ -58,6 +58,10 @@ export const getExecuteBuyV6Options: RouteOptions = {
         .description(
           "Address of wallet filling the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
         ),
+      relayer: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description("Address of wallet relaying the filling transaction"),
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the path will be returned."),
@@ -67,7 +71,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
       currency: Joi.string()
         .pattern(regex.address)
         .default(Sdk.Common.Addresses.Eth[config.chainId]),
-      automatedRoyalties: Joi.boolean().default(true),
+      normalizeRoyalties: Joi.boolean().default(false),
       preferredOrderSource: Joi.string()
         .lowercase()
         .pattern(regex.domain)
@@ -190,7 +194,12 @@ export const getExecuteBuyV6Options: RouteOptions = {
           quantity?: number;
         }
       ) => {
-        const totalPrice = bn(order.price).mul(token.quantity ?? 1);
+        const fees = payload.normalizeRoyalties ? order.fees ?? [] : [];
+        const totalFee = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+
+        const totalPrice = bn(order.price)
+          .add(totalFee)
+          .mul(token.quantity ?? 1);
         path.push({
           orderId: order.id,
           contract: token.contract,
@@ -209,7 +218,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               kind: order.kind,
               currency: order.currency,
               rawData: order.rawData,
-              fees: payload.automatedRoyalties ? order.fees : [],
+              fees,
             },
             {
               kind: token.kind,
@@ -604,6 +613,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
             status: "incomplete",
             data: {
               ...tx,
+              from: payload.relayer ? payload.relayer : tx.from,
               maxFeePerGas: payload.maxFeePerGas
                 ? bn(payload.maxFeePerGas).toHexString()
                 : undefined,
@@ -619,6 +629,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
         status: "incomplete",
         data: {
           ...txData,
+          from: payload.relayer ? payload.relayer : txData.from,
           maxFeePerGas: payload.maxFeePerGas ? bn(payload.maxFeePerGas).toHexString() : undefined,
           maxPriorityFeePerGas: payload.maxPriorityFeePerGas
             ? bn(payload.maxPriorityFeePerGas).toHexString()

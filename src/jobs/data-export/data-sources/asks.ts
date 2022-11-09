@@ -1,4 +1,4 @@
-import { redb } from "@/common/db";
+import { ridb } from "@/common/db";
 import { Sources } from "@/models/sources";
 import { fromBuffer } from "@/common/utils";
 import { BaseDataSource } from "@/jobs/data-export/data-sources/index";
@@ -62,7 +62,7 @@ export class AsksDataSource extends BaseDataSource {
         LIMIT $/limit/;
       `;
 
-    const result = await redb.manyOrNone(query, {
+    const result = await ridb.manyOrNone(query, {
       id: cursor?.id,
       updatedAt: cursor?.updatedAt,
       limit,
@@ -87,18 +87,20 @@ export class AsksDataSource extends BaseDataSource {
         let startPrice = r.price;
         let endPrice = r.price;
 
-        switch (r.kind) {
-          case "wyvern-v2.3": {
-            const wyvernOrder = new Sdk.WyvernV23.Order(config.chainId, r.raw_data);
-            startPrice = wyvernOrder.getMatchingPrice(r.valid_from);
-            endPrice = wyvernOrder.getMatchingPrice(r.valid_until);
-            break;
-          }
-          case "seaport": {
-            const seaportOrder = new Sdk.Seaport.Order(config.chainId, r.raw_data);
-            startPrice = seaportOrder.getMatchingPrice(r.valid_from);
-            endPrice = seaportOrder.getMatchingPrice(r.valid_until);
-            break;
+        if (r.raw_data) {
+          switch (r.kind) {
+            case "wyvern-v2.3": {
+              const wyvernOrder = new Sdk.WyvernV23.Order(config.chainId, r.raw_data);
+              startPrice = wyvernOrder.getMatchingPrice(r.valid_from);
+              endPrice = wyvernOrder.getMatchingPrice(r.valid_until);
+              break;
+            }
+            case "seaport": {
+              const seaportOrder = new Sdk.Seaport.Order(config.chainId, r.raw_data);
+              startPrice = seaportOrder.getMatchingPrice(r.valid_from);
+              endPrice = seaportOrder.getMatchingPrice(r.valid_until);
+              break;
+            }
           }
         }
 
