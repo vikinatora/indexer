@@ -65,14 +65,6 @@ export const save = async (
         });
       }
 
-      // Check: order is a bid
-      if (order.params.side !== Sdk.Forward.Types.Side.BID) {
-        return results.push({
-          id,
-          status: "unsupported-side",
-        });
-      }
-
       // Check: order is valid
       try {
         order.checkValidity();
