@@ -46,7 +46,10 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       // EventType.TRAIT_OFFER
     ],
     async (event) => {
-      const currentTime = event.event_type === "item_listed" ? Math.floor(Date.now() / 1000) : 0;
+      const currentTime =
+        event.event_type === "item_listed" && config.chainId === 1
+          ? Math.floor(Date.now() / 1000)
+          : 0;
 
       if (currentTime % 10 === 0) {
         logger.info(
