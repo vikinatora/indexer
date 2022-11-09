@@ -42,6 +42,7 @@ export declare type PartialOrderComponents = {
   price: string;
   paymentToken: string;
   amount: number;
+  quantity?: number;
   startTime: number;
   endTime: number;
   contract: string;
@@ -693,6 +694,23 @@ export const save = async (
       let price = bn(orderParams.price);
       let value = price;
 
+      if ("quantity" in orderParams) {
+        logger.info(
+          "orders-seaport-save",
+          `handlePartialOrder - using quantity, orderParams=${JSON.stringify(orderParams)}`
+        );
+
+        if (bn(orderParams.quantity!).gt(1)) {
+          price = price.div(orderParams.quantity!);
+          value = value.div(orderParams.quantity!);
+        }
+      } else {
+        logger.info(
+          "orders-seaport-save",
+          `handlePartialOrder - using amount., orderParams=${JSON.stringify(orderParams)}`
+        );
+      }
+
       // Handle: fees
       let feeBps = 250;
       const feeBreakdown = [
@@ -723,8 +741,8 @@ export const save = async (
       }
 
       if (orderParams.side === "buy") {
-        const feeAmount = bn(price).mul(feeBps).div(10000);
-        value = bn(price).sub(feeAmount);
+        const feeAmount = price.mul(feeBps).div(10000);
+        value = price.sub(feeAmount);
       }
 
       // Handle: source

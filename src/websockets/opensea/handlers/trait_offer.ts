@@ -13,6 +13,7 @@ export const handleEvent = (payload: TraitOfferEventPayload): PartialOrderCompon
     price: payload.base_price,
     paymentToken: payload.payment_token.address,
     amount: payload.quantity,
+    quantity: payload.quantity,
     startTime: now(),
     endTime: toTime(payload.expiration_date),
     contract: (payload.asset_contract_criteria as { address: string }).address,
