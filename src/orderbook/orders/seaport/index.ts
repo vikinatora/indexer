@@ -573,41 +573,52 @@ export const save = async (
 
       let collectionResult;
 
-      if (
-        orderParams.tokenId ||
-        !getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)
-      ) {
+      if (orderParams.kind === "single-token") {
         collectionResult = await redb.oneOrNone(
-          `
-                  SELECT
-                    royalties,
-                    token_set_id
-                  FROM collections
-                  WHERE id = $/id/
-                `,
+          `SELECT 
+                    royalties
+                 FROM collections
+                 WHERE contract = $/contract/
+                 AND token_id_range @> $/tokenId/::NUMERIC(78, 0)`,
           {
-            id: orderParams.contract,
+            contract: toBuffer(orderParams.contract),
+            tokenId: orderParams.tokenId,
           }
         );
       } else {
-        collectionResult = await redb.oneOrNone(
-          `
+        if (getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)) {
+          collectionResult = await redb.oneOrNone(
+            `
                   SELECT
                     royalties,
                     token_set_id
                   FROM collections
                   WHERE contract = $/contract/ AND slug = $/collectionSlug/
                 `,
-          {
-            contract: toBuffer(orderParams.contract),
-            collectionSlug: orderParams.collectionSlug,
-          }
-        );
+            {
+              contract: toBuffer(orderParams.contract),
+              collectionSlug: orderParams.collectionSlug,
+            }
+          );
+        } else {
+          collectionResult = await redb.oneOrNone(
+            `
+                  SELECT
+                    royalties,
+                    token_set_id
+                  FROM collections
+                  WHERE id = $/id/
+                `,
+            {
+              id: orderParams.contract,
+            }
+          );
+        }
 
         if (!collectionResult) {
           logger.warn(
             "orders-seaport-save",
-            `handlePartialOrder - No collection found for slug. collectionSlug=${
+            `handlePartialOrder - No collection found. collectionSlug=${
               orderParams.collectionSlug
             }, orderParams=${JSON.stringify(orderParams)}`
           );
