@@ -42,11 +42,13 @@ export declare type PartialOrderComponents = {
   price: string;
   paymentToken: string;
   amount: number;
+  quantity?: number;
   startTime: number;
   endTime: number;
   contract: string;
   tokenId?: string;
   offerer: string;
+  taker?: string;
   isDynamic?: boolean;
   collectionSlug: string;
   attributeKey?: string;
@@ -572,54 +574,56 @@ export const save = async (
 
       let collectionResult;
 
-      if (orderParams.tokenId) {
+      if (orderParams.kind === "single-token") {
         collectionResult = await redb.oneOrNone(
           `SELECT 
                     royalties
                  FROM collections
-                 JOIN tokens ON collections.id = tokens.collection_id
-                 WHERE tokens.contract = $/contract/ AND tokens.token_id = $/tokenId/`,
+                 WHERE contract = $/contract/
+                 AND token_id_range @> $/tokenId/::NUMERIC(78, 0)`,
           {
             contract: toBuffer(orderParams.contract),
             tokenId: orderParams.tokenId,
           }
         );
-      } else if (getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)) {
-        collectionResult = await redb.oneOrNone(
-          `
+      } else {
+        if (getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)) {
+          collectionResult = await redb.oneOrNone(
+            `
                   SELECT
                     royalties,
                     token_set_id
                   FROM collections
                   WHERE contract = $/contract/ AND slug = $/collectionSlug/
                 `,
-          {
-            contract: toBuffer(orderParams.contract),
-            collectionSlug: orderParams.collectionSlug,
-          }
-        );
-      } else {
-        collectionResult = await redb.oneOrNone(
-          `
+            {
+              contract: toBuffer(orderParams.contract),
+              collectionSlug: orderParams.collectionSlug,
+            }
+          );
+        } else {
+          collectionResult = await redb.oneOrNone(
+            `
                   SELECT
                     royalties,
                     token_set_id
                   FROM collections
                   WHERE id = $/id/
                 `,
-          {
-            id: orderParams.contract,
-          }
-        );
-      }
+            {
+              id: orderParams.contract,
+            }
+          );
+        }
 
-      if (!collectionResult) {
-        logger.warn(
-          "orders-seaport-save",
-          `handlePartialOrder - No collection found. collectionSlug=${
-            orderParams.collectionSlug
-          }, orderParams=${JSON.stringify(orderParams)}`
-        );
+        if (!collectionResult) {
+          logger.warn(
+            "orders-seaport-save",
+            `handlePartialOrder - No collection found. collectionSlug=${
+              orderParams.collectionSlug
+            }, orderParams=${JSON.stringify(orderParams)}`
+          );
+        }
       }
 
       // Check and save: associated token set
@@ -693,6 +697,23 @@ export const save = async (
       let price = bn(orderParams.price);
       let value = price;
 
+      if ("quantity" in orderParams) {
+        logger.info(
+          "orders-seaport-save",
+          `handlePartialOrder - using quantity, orderParams=${JSON.stringify(orderParams)}`
+        );
+
+        if (bn(orderParams.quantity!).gt(1)) {
+          price = price.div(orderParams.quantity!);
+          value = value.div(orderParams.quantity!);
+        }
+      } else {
+        logger.info(
+          "orders-seaport-save",
+          `handlePartialOrder - using amount., orderParams=${JSON.stringify(orderParams)}`
+        );
+      }
+
       // Handle: fees
       let feeBps = 250;
       const feeBreakdown = [
@@ -713,18 +734,11 @@ export const save = async (
             recipient: royalty.recipient,
           });
         }
-      } else {
-        logger.warn(
-          "orders-seaport-save",
-          `handlePartialOrder - Unable to calculate royalties., orderParams=${JSON.stringify(
-            orderParams
-          )}`
-        );
       }
 
       if (orderParams.side === "buy") {
-        const feeAmount = bn(price).mul(feeBps).div(10000);
-        value = bn(price).sub(feeAmount);
+        const feeAmount = price.mul(feeBps).div(10000);
+        value = price.sub(feeAmount);
       }
 
       // Handle: source
@@ -794,7 +808,7 @@ export const save = async (
             }
           }
         } catch (error) {
-          logger.error(
+          logger.warn(
             "orders-seaport-save",
             `Bid value validation - error. orderId=${id}, contract=${orderParams.contract}, tokenId=${tokenId}, error=${error}`
           );
@@ -819,7 +833,7 @@ export const save = async (
         consideration_bundle_id: null,
         bundle_kind: null,
         maker: toBuffer(orderParams.offerer),
-        taker: toBuffer(AddressZero),
+        taker: orderParams.taker ? toBuffer(orderParams.taker) : toBuffer(AddressZero),
         price: price.toString(),
         value: value.toString(),
         currency: toBuffer(orderParams.paymentToken),
@@ -1300,7 +1314,7 @@ export const getCollectionFloorAskValue = async (contract: string, tokenId: numb
       return Number(collectionFloorAskValue);
     } else {
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-      const collectionFloorAskValue = collection!.floorSellValue || 0;
+      const collectionFloorAskValue = collection?.floorSellValue || 0;
 
       await redis.set(`collection-floor-ask:${contract}`, collectionFloorAskValue, "EX", 3600);
 

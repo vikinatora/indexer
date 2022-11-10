@@ -57,6 +57,7 @@ export type EventDataKind =
   | "seaport-order-filled"
   | "seaport-counter-incremented"
   | "rarible-match"
+  | "rarible-cancel"
   | "element-erc721-sell-order-filled"
   | "element-erc721-sell-order-filled-v2"
   | "element-erc721-buy-order-filled"
@@ -133,6 +134,7 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       x2y2.orderCancelled,
       x2y2.orderInventory,
       rarible.match,
+      rarible.cancel,
       element.erc721BuyOrderFilled,
       element.erc721BuyOrderFilledV2,
       element.erc721SellOrderFilled,
@@ -239,6 +241,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return seaport.orderFulfilled;
     case "rarible-match":
       return rarible.match;
+    case "rarible-cancel":
+      return rarible.cancel;
     case "element-erc721-sell-order-filled":
       return element.erc721SellOrderFilled;
     case "element-erc721-sell-order-filled-v2":
