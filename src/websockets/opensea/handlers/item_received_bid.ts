@@ -19,7 +19,6 @@ export const handleEvent = (
     price: payload.base_price,
     paymentToken: payload.payment_token.address,
     amount: payload.quantity,
-    quantity: payload.quantity,
     startTime: now(),
     endTime: toTime(payload.expiration_date),
     contract,
