@@ -571,18 +571,39 @@ export const save = async (
         }
       }
 
-      const collectionResult = await redb.oneOrNone(
-        `
+      let collectionResult;
+
+      if (
+        orderParams.tokenId ||
+        !getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)
+      ) {
+        collectionResult = await redb.oneOrNone(
+          `
                   SELECT
                     royalties,
                     token_set_id
                   FROM collections
                   WHERE id = $/id/
                 `,
-        {
-          id: orderParams.contract,
-        }
-      );
+          {
+            id: orderParams.contract,
+          }
+        );
+      } else {
+        collectionResult = await redb.oneOrNone(
+          `
+                  SELECT
+                    royalties,
+                    token_set_id
+                  FROM collections
+                  WHERE contract = $/contract/ AND slug = $/collectionSlug/
+                `,
+          {
+            contract: toBuffer(orderParams.contract),
+            collectionSlug: orderParams.collectionSlug,
+          }
+        );
+      }
 
       // Check and save: associated token set
       const schemaHash = generateSchemaHash();
