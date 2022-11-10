@@ -595,6 +595,15 @@ export const generateBidDetailsV6 = async (
       };
     }
 
+    case "forward": {
+      const sdkOrder = new Sdk.Forward.Order(config.chainId, order.rawData);
+      return {
+        kind: "forward",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
     case "rarible": {
       return {
         kind: "rarible",
