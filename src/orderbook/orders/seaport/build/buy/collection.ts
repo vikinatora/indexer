@@ -4,7 +4,7 @@ import { BaseBuilder } from "@reservoir0x/sdk/dist/seaport/builders/base";
 
 import { redb } from "@/common/db";
 import { redis } from "@/common/redis";
-import { bn, fromBuffer } from "@/common/utils";
+import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as utils from "@/orderbook/orders/seaport/build/utils";
 import { generateSchemaHash } from "@/orderbook/orders/utils";
@@ -47,7 +47,26 @@ export const build = async (options: BuildOrderOptions) => {
   const collectionIsContractWide = collectionResult.token_set_id?.startsWith("contract:");
   if (!options.excludeFlaggedTokens && collectionIsContractWide) {
     // Use contract-wide order
-    const builder: BaseBuilder = new Sdk.Seaport.Builders.ContractWide(config.chainId);
+    let builder: BaseBuilder = new Sdk.Seaport.Builders.ContractWide(config.chainId);
+
+    if (options.orderbook === "opensea" && config.chainId === 1) {
+      const buildCollectionOfferParams = await OpenSeaApi.buildCollectionOffer(
+        options.maker,
+        options.quantity || 1,
+        collectionResult.slug
+      );
+
+      if (
+        buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria != "0"
+      ) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (buildInfo.params as any).merkleRoot =
+          buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria;
+
+        builder = new Sdk.Seaport.Builders.TokenList(config.chainId);
+      }
+    }
+
     return builder?.build(buildInfo.params);
   } else {
     // Use token-list order
@@ -62,9 +81,8 @@ export const build = async (options: BuildOrderOptions) => {
       );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (buildInfo.params as any).merkleRoot = bn(
-        buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria
-      ).toHexString();
+      (buildInfo.params as any).merkleRoot =
+        buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria;
     } else {
       // For up-to-date results we need to compute the corresponding token set id
       // from the tokens table. However, that can be computationally-expensive so
