@@ -569,6 +569,15 @@ export const generateBidDetailsV6 = async (
       };
     }
 
+    case "forward": {
+      const sdkOrder = new Sdk.Forward.Order(config.chainId, order.rawData);
+      return {
+        kind: "forward",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
     default: {
       throw new Error("Unsupported order kind");
     }
