@@ -603,6 +603,15 @@ export const save = async (
             collectionSlug: orderParams.collectionSlug,
           }
         );
+
+        if (!collectionResult) {
+          logger.warn(
+            "orders-seaport-save",
+            `handlePartialOrder - No collection found for slug. collectionSlug=${
+              orderParams.collectionSlug
+            }, orderParams=${JSON.stringify(orderParams)}`
+          );
+        }
       }
 
       // Check and save: associated token set
