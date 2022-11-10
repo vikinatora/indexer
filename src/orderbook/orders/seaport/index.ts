@@ -572,18 +572,39 @@ export const save = async (
         }
       }
 
-      const collectionResult = await redb.oneOrNone(
-        `
+      let collectionResult;
+
+      if (
+        orderParams.tokenId ||
+        !getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)
+      ) {
+        collectionResult = await redb.oneOrNone(
+          `
                   SELECT
                     royalties,
                     token_set_id
                   FROM collections
                   WHERE id = $/id/
                 `,
-        {
-          id: orderParams.contract,
-        }
-      );
+          {
+            id: orderParams.contract,
+          }
+        );
+      } else {
+        collectionResult = await redb.oneOrNone(
+          `
+                  SELECT
+                    royalties,
+                    token_set_id
+                  FROM collections
+                  WHERE contract = $/contract/ AND slug = $/collectionSlug/
+                `,
+          {
+            contract: toBuffer(orderParams.contract),
+            collectionSlug: orderParams.collectionSlug,
+          }
+        );
+      }
 
       // Check and save: associated token set
       const schemaHash = generateSchemaHash();
@@ -1273,7 +1294,7 @@ export const getCollectionFloorAskValue = async (contract: string, tokenId: numb
       return Number(collectionFloorAskValue);
     } else {
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-      const collectionFloorAskValue = collection!.floorSellValue || 0;
+      const collectionFloorAskValue = collection?.floorSellValue || 0;
 
       await redis.set(`collection-floor-ask:${contract}`, collectionFloorAskValue, "EX", 3600);
 
