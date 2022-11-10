@@ -57,7 +57,7 @@ export const build = async (options: BuildOrderOptions) => {
       );
 
       if (
-        buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria === "0"
+        buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria != "0"
       ) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (buildInfo.params as any).merkleRoot =
