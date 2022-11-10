@@ -2,6 +2,7 @@ import { defaultAbiCoder } from "@ethersproject/abi";
 import { Log } from "@ethersproject/abstract-provider";
 import * as Sdk from "@reservoir0x/sdk";
 
+import { logger } from "@/common/logger";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as es from "@/events-sync/storage";
@@ -98,6 +99,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const txTrace = await utils.fetchTransactionTrace(txHash);
         if (!txTrace) {
           // Skip any failed attempts to get the trace
+          logger.info("debug", "Failed at point 1");
           break;
         }
 
@@ -133,6 +135,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             }
           }
         } catch {
+          logger.info("debug", "Failed at point 2");
           // tx data doesn't match directPurchase
         }
 
@@ -167,6 +170,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             }
           }
         } catch {
+          logger.info("debug", "Failed at point 3");
           // tx data doesn't match directAcceptBid
         }
 
@@ -214,11 +218,13 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             eventsLog.match.set(`${txHash}-${address}`, eventRank + 1);
           }
         } catch {
+          logger.info("debug", "Failed at point 4");
           // tx data doesn't match matchOrders
         }
 
         // Exclude orders with exotic asset types
         if (!assetTypes.includes(nftAssetType) || !assetTypes.includes(currencyAssetType)) {
+          logger.info("debug", "Failed at point 5");
           break;
         }
 
@@ -234,6 +240,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         } else if (currencyAssetType === ERC20) {
           currency = paymentCurrency;
         } else {
+          logger.info("debug", "Failed at point 6");
           break;
         }
 
@@ -254,6 +261,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         );
         if (!prices.nativePrice) {
           // We must always have the native price
+          logger.info("debug", "Failed at point 7");
           break;
         }
 
