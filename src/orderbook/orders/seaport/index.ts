@@ -1254,7 +1254,7 @@ export const getCollectionFloorAskValue = async (contract: string, tokenId: numb
       return Number(collectionFloorAskValue);
     } else {
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-      const collectionFloorAskValue = collection!.floorSellValue || 0;
+      const collectionFloorAskValue = collection?.floorSellValue || 0;
 
       await redis.set(`collection-floor-ask:${contract}`, collectionFloorAskValue, "EX", 3600);
 
