@@ -30,7 +30,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   let currentTx: string | undefined;
   let currentTxLogs: Log[] = [];
   const eventsLog = {
-    match: new Map<string, number>(),
+    matchOrders: new Map<string, number>(),
+    directPurchase: new Map<string, number>(),
+    directAcceptBid: new Map<string, number>(),
   };
 
   // Handle the events
@@ -69,7 +71,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       case "rarible-match": {
         const { args } = eventData.abi.parseLog(log);
         const leftHash = args["leftHash"].toLowerCase();
-
+        const rightHash = args["rightHash"].toLowerCase();
+        const newLeftFill = args["newLeftFill"].toString();
+        const newRightFill = args["newRightFill"].toString();
         const ERC20 = "0x8ae85d84";
         const ETH = "0xaaaebeba";
         const ERC721 = "0x73ad2146";
@@ -90,6 +94,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         let nftData = "";
         let maker = "";
         let paymentCurrency = "";
+        let amount = "";
+        let currencyPrice = "";
+        let orderId = "";
 
         const txHash = baseEventParams.txHash;
         const address = baseEventParams.address;
@@ -104,7 +111,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Rarible has 3 fill functions: directPurchase, directAcceptBid and matchOrders.
         // Try to parse calldata as directPurchase
         try {
-          const eventRank = eventsLog.match.get(`${txHash}-${address}`) ?? 0;
+          const eventRank = eventsLog.directPurchase.get(`${txHash}-${address}`) ?? 0;
 
           const callTrace = searchForCall(
             txTrace.calls,
@@ -121,18 +128,23 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               "function directPurchase(tuple(address sellOrderMaker, uint256 sellOrderNftAmount, bytes4 nftAssetClass, bytes nftData, uint256 sellOrderPaymentAmount, address paymentToken, uint256 sellOrderSalt, uint sellOrderStart, uint sellOrderEnd, bytes4 sellOrderDataType, bytes sellOrderData, bytes sellOrderSignature, uint256 buyOrderPaymentAmount, uint256 buyOrderNftAmount, bytes buyOrderData))",
             ]);
             const result = iface.decodeFunctionData("directPurchase", callTrace.input);
-
+            orderId = leftHash;
             side = "sell";
-            maker = result[0][0];
+            maker = result[0][0].toLowerCase();
             nftAssetType = result[0][2];
             nftData = result[0][3];
 
-            paymentCurrency = result[0][5];
+            paymentCurrency = result[0][5].toLowerCase();
             if (paymentCurrency === constants.AddressZero) {
               currencyAssetType = ETH;
             } else {
               currencyAssetType = ERC20;
             }
+
+            currencyPrice = newLeftFill;
+            amount = newRightFill;
+
+            eventsLog.directPurchase.set(`${txHash}-${address}`, eventRank + 1);
           }
         } catch {
           // tx data doesn't match directPurchase
@@ -140,7 +152,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         // Try to parse calldata as directAcceptBid
         try {
-          const eventRank = eventsLog.match.get(`${txHash}-${address}`) ?? 0;
+          const eventRank = eventsLog.directAcceptBid.get(`${txHash}-${address}`) ?? 0;
 
           const callTrace = searchForCall(
             txTrace.calls,
@@ -157,18 +169,24 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               "function directAcceptBid(tuple(address bidMaker, uint256 bidNftAmount, bytes4 nftAssetClass, bytes nftData, uint256 bidPaymentAmount, address paymentToken, uint256 bidSalt, uint bidStart, uint bidEnd, bytes4 bidDataType, bytes bidData, bytes bidSignature, uint256 sellOrderPaymentAmount, uint256 sellOrderNftAmount, bytes sellOrderData) )",
             ]);
             const result = iface.decodeFunctionData("directAcceptBid", callTrace.input);
+            orderId = rightHash;
 
             side = "buy";
-            maker = result[0][0];
+            maker = result[0][0].toLowerCase();
             nftAssetType = result[0][2];
             nftData = result[0][3];
 
-            paymentCurrency = result[0][5];
+            paymentCurrency = result[0][5].toLowerCase();
             if (paymentCurrency === constants.AddressZero) {
               currencyAssetType = ETH;
             } else {
               currencyAssetType = ERC20;
             }
+
+            currencyPrice = newLeftFill;
+            amount = newRightFill;
+
+            eventsLog.directAcceptBid.set(`${txHash}-${address}`, eventRank + 1);
           }
         } catch {
           // tx data doesn't match directAcceptBid
@@ -176,7 +194,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         // Try to parse calldata as matchOrders
         try {
-          const eventRank = eventsLog.match.get(`${txHash}-${address}`) ?? 0;
+          const eventRank = eventsLog.matchOrders.get(`${txHash}-${address}`) ?? 0;
           const callTrace = searchForCall(
             txTrace.calls,
             {
@@ -201,6 +219,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             const nftAsset = side === "buy" ? rightAsset : leftAsset;
             const currencyAsset = side === "buy" ? leftAsset : rightAsset;
 
+            orderId = leftHash;
             nftData = nftAsset.assetType.data;
             nftAssetType = nftAsset.assetType.assetClass;
             currencyAssetType = currencyAsset.assetType.assetClass;
@@ -212,10 +231,14 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 ["(address token)"],
                 currencyAsset.assetType.data
               );
-              paymentCurrency = decodedCurrencyAsset[0][0];
+              paymentCurrency = decodedCurrencyAsset[0][0].toLowerCase();
             }
 
-            eventsLog.match.set(`${txHash}-${address}`, eventRank + 1);
+            // Match order has amount in newLeftFill when it's a buy order and amount in newRightFill when it's sell order
+            amount = side === "buy" ? newLeftFill : newRightFill;
+            currencyPrice = side === "buy" ? newRightFill : newLeftFill;
+
+            eventsLog.matchOrders.set(`${txHash}-${address}`, eventRank + 1);
           }
         } catch {
           // tx data doesn't match matchOrders
@@ -244,10 +267,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const decodedNftAsset = defaultAbiCoder.decode(["(address token, uint tokenId)"], nftData);
         const contract = decodedNftAsset[0][0].toLowerCase();
         const tokenId = decodedNftAsset[0][1].toString();
-        const amount =
-          side === "buy" ? args["newLeftFill"].toString() : args["newRightFill"].toString();
-        let currencyPrice =
-          side === "buy" ? args["newRightFill"].toString() : args["newLeftFill"].toString();
 
         currencyPrice = bn(currencyPrice).div(amount).toString();
 
@@ -263,7 +282,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         fillEventsPartial.push({
           orderKind,
-          orderId: leftHash,
+          orderId,
           orderSide: side,
           maker,
           taker,
@@ -281,8 +300,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         });
 
         fillInfos.push({
-          context: `${leftHash}-${baseEventParams.txHash}`,
-          orderId: leftHash,
+          context: `${orderId}-${baseEventParams.txHash}`,
+          orderId,
           orderSide: side,
           contract,
           tokenId,
@@ -292,8 +311,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         });
 
         orderInfos.push({
-          context: `filled-${leftHash}-${baseEventParams.txHash}`,
-          id: leftHash,
+          context: `filled-${orderId}-${baseEventParams.txHash}`,
+          id: orderId,
           trigger: {
             kind: "sale",
             txHash: baseEventParams.txHash,
