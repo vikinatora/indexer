@@ -63,11 +63,11 @@ export const getOrdersAsksV3Options: RouteOptions = {
       status: Joi.string()
         .when("maker", {
           is: Joi.exist(),
-          then: Joi.valid("active", "inactive"),
+          then: Joi.valid("active", "inactive", "expired", "cancelled", "filled"),
           otherwise: Joi.valid("active"),
         })
         .description(
-          "active = currently valid, inactive = temporarily invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
+          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
       source: Joi.string()
         .pattern(regex.domain)
@@ -298,8 +298,9 @@ export const getOrdersAsksV3Options: RouteOptions = {
 
       // Filters
       const conditions: string[] = [`orders.side = 'sell'`];
-      let orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+
       let communityFilter = "";
+      let orderStatusFilter;
 
       if (query.ids) {
         if (Array.isArray(query.ids)) {
@@ -307,6 +308,8 @@ export const getOrdersAsksV3Options: RouteOptions = {
         } else {
           conditions.push(`orders.id = $/ids/`);
         }
+      } else {
+        orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
       }
 
       if (query.token) {
@@ -341,6 +344,18 @@ export const getOrdersAsksV3Options: RouteOptions = {
             orderStatusFilter = `orders.fillability_status = 'no-balance' OR (orders.fillability_status = 'fillable' AND orders.approval_status != 'approved')`;
             break;
           }
+          case "expired": {
+            orderStatusFilter = `orders.fillability_status = 'expired'`;
+            break;
+          }
+          case "filled": {
+            orderStatusFilter = `orders.fillability_status = 'filled'`;
+            break;
+          }
+          case "cancelled": {
+            orderStatusFilter = `orders.fillability_status = 'cancelled'`;
+            break;
+          }
         }
 
         (query as any).maker = toBuffer(query.maker);
@@ -369,13 +384,15 @@ export const getOrdersAsksV3Options: RouteOptions = {
         conditions.push(`orders.is_reservoir`);
       }
 
+      if (orderStatusFilter) {
+        conditions.push(orderStatusFilter);
+      }
+
       if (!query.includePrivate) {
         conditions.push(
           `orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL`
         );
       }
-
-      conditions.push(orderStatusFilter);
 
       if (query.continuation) {
         const [priceOrCreatedAt, id] = splitContinuation(
