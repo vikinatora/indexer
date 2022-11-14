@@ -179,7 +179,9 @@ export const save = async (
 
       // Check: order has a valid signature
       try {
-        order.checkSignature();
+        if (!order.params.cbOrderId) {
+          order.checkSignature();
+        }
       } catch {
         return results.push({
           id,
@@ -333,7 +335,12 @@ export const save = async (
 
       // Handle: source
       const sources = await Sources.getInstance();
-      const source = metadata.source ? await sources.getOrInsert(metadata.source) : undefined;
+      let source = metadata.source ? await sources.getOrInsert(metadata.source) : undefined;
+
+      // If we have cbOrderId this is a coinbase order
+      if (order.params.cbOrderId) {
+        source = await sources.getOrInsert("nft.coinbase.com");
+      }
 
       // Handle: native Reservoir orders
       const isReservoir = true;
@@ -370,7 +377,7 @@ export const save = async (
         currency_price: price.toString(),
         currency_value: value.toString(),
         needs_conversion: null,
-        quantity_remaining: order.params.nftAmount,
+        quantity_remaining: order.params.nftAmount || "1",
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.nonce,
         source_id_int: source?.id,
