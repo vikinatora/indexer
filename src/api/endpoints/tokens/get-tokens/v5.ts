@@ -336,6 +336,8 @@ export const getTokensV5Options: RouteOptions = {
           t.last_buy_timestamp,
           t.last_sell_value,
           t.last_sell_timestamp,
+          q.floor_sell_quantity_filled,
+          q.floor_sell_quantity_remaining,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (
             SELECT
@@ -345,26 +347,21 @@ export const getTokensV5Options: RouteOptions = {
               AND nb.token_id = t.token_id
               AND nb.amount > 0
             LIMIT 1
-          ) AS owner,
-          (
-            SELECT
-              o.quantity_filled
-            FROM orders o
-            WHERE o.id = t.floor_sell_id
-            LIMIT 1
-          ) AS floor_sell_quantity_filled,
-          (
-            SELECT
-              o.quantity_remaining
-            FROM orders o
-            WHERE o.id = t.floor_sell_id
-            LIMIT 1
-          ) AS floor_sell_quantity_remaining
+          ) AS owner
           ${selectAttributes}
           ${selectTopBid}
         FROM tokens t
         ${topBidQuery}
         ${sourceQuery}
+        JOIN LATERAL (
+          SELECT
+            o.quantity_filled AS floor_sell_quantity_filled,
+            o.quantity_remaining AS floor_sell_quantity_remaining
+          FROM
+            orders o
+          WHERE
+            o.id = t.floor_sell_id
+          LIMIT 1) q ON TRUE
         JOIN collections c ON t.collection_id = c.id
         JOIN contracts con ON t.contract = con.address
       `;
