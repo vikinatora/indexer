@@ -377,7 +377,7 @@ export const getTokensV5Options: RouteOptions = {
         FROM tokens t
         ${topBidQuery}
         ${sourceQuery}
-        JOIN LATERAL (
+        LEFT JOIN LATERAL (
           SELECT
             o.quantity_filled AS floor_sell_quantity_filled,
             o.quantity_remaining AS floor_sell_quantity_remaining
