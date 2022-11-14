@@ -221,69 +221,69 @@ export const postOrderV3Options: RouteOptions = {
           // Forward EIP1271 signature
           orderComponents.signature = defaultAbiCoder.encode(
             [
-              `(
-                (
-                  uint8 itemType,
-                  address token,
-                  uint256 identifier,
-                  uint256 amount,
-                  uint256 startTime,
-                  uint256 endTime,
-                  uint256 salt,
-                  (
-                    uint256 amount,
-                    address recipient
-                  ) payments,
-                  bytes signature
-                ) seaportListingDetails,
-                bytes oracleData
+              `tuple(
+                uint8,
+                address,
+                uint256,
+                uint256,
+                uint256,
+                uint256,
+                uint256,
+                tuple(uint256,address)[],
+                bytes
               )`,
+              "bytes",
             ],
             [
-              {
-                seaportListingDetails: {
-                  itemType: tokenOffer.itemType,
-                  token: tokenOffer.token,
-                  identifier: tokenOffer.identifierOrCriteria,
-                  amount: tokenOffer.endAmount,
-                  startTime: orderComponents.startTime,
-                  endTime: orderComponents.endTime,
-                  salt: orderComponents.salt,
-                  payments: orderComponents.consideration.map(({ endAmount, recipient }) => ({
-                    amount: endAmount,
-                    recipient,
-                  })),
-                  signature: orderComponents.signature!,
+              [
+                tokenOffer.itemType,
+                tokenOffer.token,
+                tokenOffer.identifierOrCriteria,
+                tokenOffer.endAmount,
+                orderComponents.startTime,
+                orderComponents.endTime,
+                orderComponents.salt,
+                orderComponents.consideration.map(({ endAmount, recipient }) => [
+                  endAmount,
+                  recipient,
+                ]),
+                orderComponents.signature!,
+              ],
+              await inject({
+                method: "GET",
+                url: `/oracle/collections/floor-ask/v4?token=${tokenOffer.token}:${tokenOffer.identifierOrCriteria}`,
+                headers: {
+                  "Content-Type": "application/json",
                 },
-                oracleData: await inject({
-                  method: "POST",
-                  url: `/oracle/collections/floor-ask/v4?token=${tokenOffer.token}:${tokenOffer.identifierOrCriteria}`,
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  payload: { order },
-                })
-                  .then((response) => JSON.parse(response.payload))
-                  .then((response) =>
-                    defaultAbiCoder.encode(
+                payload: { order },
+              })
+                .then((response) => JSON.parse(response.payload))
+                .then((response) =>
+                  defaultAbiCoder.encode(
+                    [
+                      `tuple(
+                        bytes32,
+                        bytes,
+                        uint256,
+                        bytes
+                      )`,
+                    ],
+                    [
                       [
-                        `(
-                          bytes32 id,
-                          bytes payload,
-                          uint256 timestamp,
-                          bytes signature
-                        )`,
+                        response.message.id,
+                        response.message.payload,
+                        response.message.timestamp,
+                        response.message.signature,
                       ],
-                      response.message
-                    )
-                  ),
-              },
+                    ]
+                  )
+                ),
             ]
           );
 
           const orderInfo: orders.seaport.OrderInfo = {
             kind: "full",
-            orderParams: order.data,
+            orderParams: orderComponents,
             isReservoir: orderbook === "reservoir",
             metadata: {
               schema,
