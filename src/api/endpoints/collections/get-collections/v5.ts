@@ -81,6 +81,9 @@ export const getCollectionsV5Options: RouteOptions = {
         .description(
           "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. (supported only when filtering to a particular collection using `id`)"
         ),
+      normalizeRoyalties: Joi.boolean()
+        .default(false)
+        .description("If true, prices will include missing royalties to be added on-top."),
       sortBy: Joi.string()
         .valid(
           "1DayVolume",
@@ -231,7 +234,9 @@ export const getCollectionsV5Options: RouteOptions = {
             orders.value AS top_buy_value,
             orders.currency_price AS top_buy_currency_price,
             orders.source_id_int AS top_buy_source_id_int,
-            orders.currency_value AS top_buy_currency_value
+            orders.currency_value AS top_buy_currency_value,
+            orders.normalized_value AS top_buy_normalized_value,
+            orders.currency_normalized_value AS top_buy_currency_normalized_value
           FROM token_sets
           LEFT JOIN orders
             ON token_sets.top_buy_id = orders.id
@@ -501,10 +506,11 @@ export const getCollectionsV5Options: RouteOptions = {
             tokens.floor_sell_valid_from,
             tokens.floor_sell_valid_to AS floor_sell_valid_until,
             tokens.floor_sell_currency,
-            tokens.floor_sell_currency_value
+            tokens.floor_sell_currency_value,
+            orders.normalized_value AS floor_sell_normalized_value,
+            orders.currency_normalized_value AS floor_sell_currency_normalized_value
           FROM tokens
-          LEFT JOIN orders
-            ON tokens.floor_sell_id = orders.id
+          LEFT JOIN orders ON tokens.floor_sell_id = orders.id
           WHERE tokens.collection_id = x.id
           ORDER BY tokens.floor_sell_value
           LIMIT 1
@@ -564,8 +570,12 @@ export const getCollectionsV5Options: RouteOptions = {
                 ? await getJoiPriceObject(
                     {
                       gross: {
-                        amount: r.floor_sell_currency_value ?? r.floor_sell_value,
-                        nativeAmount: r.floor_sell_value,
+                        amount: query.normalizeRoyalties
+                          ? r.floor_sell_currency_normalized_value ?? r.floor_sell_value
+                          : r.floor_sell_currency_value ?? r.floor_sell_value,
+                        nativeAmount: query.normalizeRoyalties
+                          ? r.floor_sell_normalized_value ?? r.floor_sell_value
+                          : r.floor_sell_value,
                       },
                     },
                     floorAskCurrency
@@ -591,8 +601,12 @@ export const getCollectionsV5Options: RouteOptions = {
                     ? await getJoiPriceObject(
                         {
                           net: {
-                            amount: r.top_buy_currency_value ?? r.top_buy_value,
-                            nativeAmount: r.top_buy_value,
+                            amount: query.normalizeRoyalties
+                              ? r.top_buy_currency_normalized_value ?? r.top_buy_value
+                              : r.top_buy_currency_value ?? r.top_buy_value,
+                            nativeAmount: query.normalizeRoyalties
+                              ? r.top_buy_normalized_value ?? r.top_buy_value
+                              : r.top_buy_value,
                           },
                           gross: {
                             amount: r.top_buy_currency_price ?? r.top_buy_price,
