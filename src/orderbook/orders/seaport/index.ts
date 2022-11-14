@@ -180,7 +180,7 @@ export const save = async (
 
       // Check: order has a valid signature
       try {
-        order.checkSignature(baseProvider);
+        await order.checkSignature(baseProvider);
       } catch {
         return results.push({
           id,
