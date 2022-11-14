@@ -12,6 +12,7 @@ export * as zora from "@/orderbook/orders/zora";
 export * as universe from "@/orderbook/orders/universe";
 export * as element from "@/orderbook/orders/element";
 export * as rarible from "@/orderbook/orders/rarible";
+export * as blur from "@/orderbook/orders/blur";
 
 // Imports
 
