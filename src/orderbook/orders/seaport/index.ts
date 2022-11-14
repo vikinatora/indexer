@@ -1,27 +1,28 @@
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
-import pLimit from "p-limit";
+import { OrderKind } from "@reservoir0x/sdk/dist/seaport/types";
 import _ from "lodash";
+import pLimit from "p-limit";
 
 import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
+import { redis } from "@/common/redis";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
+import { Collections } from "@/models/collections";
+import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
+import { Sources } from "@/models/sources";
+import { SourcesEntity } from "@/models/sources/sources-entity";
+import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck, offChainCheckPartial } from "@/orderbook/orders/seaport/check";
 import * as tokenSet from "@/orderbook/token-sets";
-import { Sources } from "@/models/sources";
-import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
-import { redis } from "@/common/redis";
-import { getNetworkSettings } from "@/config/network";
-import { Collections } from "@/models/collections";
-import { OrderKind } from "@reservoir0x/sdk/dist/seaport/types";
-import * as commonHelpers from "@/orderbook/orders/common/helpers";
 
 export type OrderInfo =
   | {
@@ -180,7 +181,7 @@ export const save = async (
 
       // Check: order has a valid signature
       try {
-        order.checkSignature();
+        await order.checkSignature(baseProvider);
       } catch {
         return results.push({
           id,
@@ -696,6 +697,11 @@ export const save = async (
       let price = bn(orderParams.price);
       let value = price;
 
+      if (bn(orderParams.amount).gt(1)) {
+        price = price.div(orderParams.amount);
+        value = value.div(orderParams.amount);
+      }
+
       // Handle: fees
       let feeBps = 250;
       const feeBreakdown = [
@@ -719,8 +725,8 @@ export const save = async (
       }
 
       if (orderParams.side === "buy") {
-        const feeAmount = bn(price).mul(feeBps).div(10000);
-        value = bn(price).sub(feeAmount);
+        const feeAmount = price.mul(feeBps).div(10000);
+        value = price.sub(feeAmount);
       }
 
       // Handle: source
