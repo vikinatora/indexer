@@ -697,6 +697,11 @@ export const save = async (
       let price = bn(orderParams.price);
       let value = price;
 
+      if (bn(orderParams.amount).gt(1)) {
+        price = price.div(orderParams.amount);
+        value = value.div(orderParams.amount);
+      }
+
       // Handle: fees
       let feeBps = 250;
       const feeBreakdown = [
@@ -720,8 +725,8 @@ export const save = async (
       }
 
       if (orderParams.side === "buy") {
-        const feeAmount = bn(price).mul(feeBps).div(10000);
-        value = bn(price).sub(feeAmount);
+        const feeAmount = price.mul(feeBps).div(10000);
+        value = price.sub(feeAmount);
       }
 
       // Handle: source
