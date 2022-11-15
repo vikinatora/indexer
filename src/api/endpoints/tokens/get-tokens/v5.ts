@@ -155,6 +155,8 @@ export const getTokensV5Options: RouteOptions = {
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
+              quantityFilled: Joi.number().unsafe().allow(null),
+              quantityRemaining: Joi.number().unsafe().allow(null),
               source: Joi.object().allow(null),
             },
             topBid: Joi.object({
@@ -357,6 +359,8 @@ export const getTokensV5Options: RouteOptions = {
           t.last_buy_timestamp,
           t.last_sell_value,
           t.last_sell_timestamp,
+          q.floor_sell_quantity_filled,
+          q.floor_sell_quantity_remaining,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (
             SELECT
@@ -373,6 +377,15 @@ export const getTokensV5Options: RouteOptions = {
         FROM tokens t
         ${topBidQuery}
         ${sourceQuery}
+        LEFT JOIN LATERAL (
+          SELECT
+            o.quantity_filled AS floor_sell_quantity_filled,
+            o.quantity_remaining AS floor_sell_quantity_remaining
+          FROM
+            orders o
+          WHERE
+            o.id = t.floor_sell_id
+          LIMIT 1) q ON TRUE
         ${normalizeRoyaltiesQuery}
         JOIN collections c ON t.collection_id = c.id
         JOIN contracts con ON t.contract = con.address
@@ -683,6 +696,8 @@ export const getTokensV5Options: RouteOptions = {
               maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
+              quantityFilled: r.floor_sell_id ? r.floor_sell_quantity_filled : null,
+              quantityRemaining: r.floor_sell_id ? r.floor_sell_quantity_remaining : null,
               source: {
                 id: floorSellSource?.address,
                 domain: floorSellSource?.domain,
