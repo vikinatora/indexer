@@ -85,7 +85,7 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
         $/eventTimestamp/,
         $/orderHash/,
         $/maker/,
-        $/data/
+        $/data:json/
       )
     `,
       {
@@ -101,7 +101,9 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
 
     logger.info(
       "opensea-websocket",
-      `saveEvent query. event=${JSON.stringify(event)}, query=${query}, queryResult=${queryResult}`
+      `saveEvent query. event=${JSON.stringify(
+        event
+      )}, query=${query}, queryResult=${JSON.stringify(queryResult)}`
     );
   } catch (error) {
     logger.error(
