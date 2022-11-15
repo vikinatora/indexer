@@ -409,8 +409,24 @@ export const save = async (
             Number(tokenId)
           );
 
+          logger.info(
+            "orders-seaport-save",
+            `Bid value validation - debug. orderId=${id}, contract=${
+              info.contract
+            }, tokenId=${tokenId}, value=${value.toString()}, collectionFloorAskValue=${collectionFloorAskValue}, seaportBidPercentageThreshold=${seaportBidPercentageThreshold}`
+          );
+
           if (collectionFloorAskValue) {
             const percentage = (Number(value.toString()) / collectionFloorAskValue) * 100;
+
+            logger.info(
+              "orders-seaport-save",
+              `Bid value validation - check. orderId=${id}, contract=${
+                info.contract
+              }, tokenId=${tokenId}, value=${value.toString()}, collectionFloorAskValue=${collectionFloorAskValue}, percentage=${percentage.toString()}, seaportBidPercentageThreshold=${seaportBidPercentageThreshold}, bitTooLow=${
+                percentage < seaportBidPercentageThreshold
+              }`
+            );
 
             if (percentage < seaportBidPercentageThreshold) {
               return results.push({

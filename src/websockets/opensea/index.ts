@@ -70,6 +70,11 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 }
 
 const saveEvent = async (event: BaseStreamMessage<unknown>) => {
+  logger.info(
+    "opensea-websocket",
+    `saveEvent. event_type=${event.event_type}, event=${JSON.stringify(event)}`
+  );
+
   try {
     const columns = new pgp.helpers.ColumnSet(
       ["event_type", "event_timestamp", "order_hash", "maker", "data"],
