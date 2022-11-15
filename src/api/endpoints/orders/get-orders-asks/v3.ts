@@ -409,7 +409,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
       if (orderStatusFilter) {
         conditions.push(orderStatusFilter);
       }
-      
+
       if (query.continuation) {
         const [priceOrCreatedAt, id] = splitContinuation(
           query.continuation,
