@@ -12,6 +12,7 @@ export * as zora from "@/orderbook/orders/zora";
 export * as universe from "@/orderbook/orders/universe";
 export * as element from "@/orderbook/orders/element";
 export * as rarible from "@/orderbook/orders/rarible";
+export * as blur from "@/orderbook/orders/blur";
 
 // Imports
 
@@ -49,8 +50,7 @@ export type OrderKind =
   | "universe"
   | "nftx"
   | "blur"
-  | "forward"
-  | "rarible";
+  | "forward";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
