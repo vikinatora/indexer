@@ -7,6 +7,7 @@ import * as weth from "@/events-sync/data/weth";
 import * as blur from "@/events-sync/data/blur";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
 import * as element from "@/events-sync/data/element";
+import * as forward from "@/events-sync/data/forward";
 import * as foundation from "@/events-sync/data/foundation";
 import * as looksRare from "@/events-sync/data/looks-rare";
 import * as nftx from "@/events-sync/data/nftx";
@@ -25,7 +26,7 @@ import * as zora from "@/events-sync/data/zora";
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
 // handled (eg. persisted to the database and relayed for further
-// processing to any job queues).
+// processing to any job queues)
 
 export type EventDataKind =
   | "erc721-transfer"
@@ -56,6 +57,7 @@ export type EventDataKind =
   | "seaport-order-filled"
   | "seaport-counter-incremented"
   | "rarible-match"
+  | "rarible-cancel"
   | "element-erc721-sell-order-filled"
   | "element-erc721-sell-order-filled-v2"
   | "element-erc721-buy-order-filled"
@@ -88,7 +90,10 @@ export type EventDataKind =
   | "universe-cancel"
   | "nftx-redeemed"
   | "nftx-minted"
-  | "blur-orders-matched";
+  | "blur-orders-matched"
+  | "forward-order-filled"
+  | "forward-order-cancelled"
+  | "forward-counter-incremented";
 
 export type EventData = {
   kind: EventDataKind;
@@ -129,6 +134,7 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       x2y2.orderCancelled,
       x2y2.orderInventory,
       rarible.match,
+      rarible.cancel,
       element.erc721BuyOrderFilled,
       element.erc721BuyOrderFilledV2,
       element.erc721SellOrderFilled,
@@ -162,6 +168,9 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       nftx.minted,
       nftx.redeemed,
       blur.ordersMatched,
+      forward.orderFilled,
+      forward.orderCancelled,
+      forward.counterIncremented,
     ];
   } else {
     return (
@@ -232,6 +241,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return seaport.orderFulfilled;
     case "rarible-match":
       return rarible.match;
+    case "rarible-cancel":
+      return rarible.cancel;
     case "element-erc721-sell-order-filled":
       return element.erc721SellOrderFilled;
     case "element-erc721-sell-order-filled-v2":
@@ -298,6 +309,12 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return nftx.redeemed;
     case "blur-orders-matched":
       return blur.ordersMatched;
+    case "forward-order-filled":
+      return forward.orderFilled;
+    case "forward-order-cancelled":
+      return forward.orderCancelled;
+    case "forward-counter-incremented":
+      return forward.counterIncremented;
     default:
       return undefined;
   }
