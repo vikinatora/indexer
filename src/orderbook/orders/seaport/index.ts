@@ -23,6 +23,8 @@ import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/u
 import { offChainCheck, offChainCheckPartial } from "@/orderbook/orders/seaport/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
+import { TokenSet } from "@/orderbook/token-sets/token-list";
 
 export type OrderInfo =
   | {
@@ -250,6 +252,8 @@ export const save = async (
         }
 
         case "token-list": {
+          // For collection offers, If the target orderbook is opensea, the token set should always be a contract wide.
+          // This is due to a mismatch between the collection flags in our system and os. the actual merkel root is returned by build collection offer OS Api (see logic in execute bid api)
           if (metadata?.target === "opensea") {
             tokenSetId = `contract:${info.contract}`;
             await tokenSet.contractWide.save([
@@ -638,7 +642,7 @@ export const save = async (
       }
 
       // Check and save: associated token set
-      const schemaHash = generateSchemaHash();
+      let schemaHash = generateSchemaHash();
 
       let tokenSetId: string | undefined;
       switch (orderParams.kind) {
@@ -693,6 +697,55 @@ export const save = async (
         }
 
         case "token-list": {
+          const schema = {
+            kind: "attribute",
+            data: {
+              collection: collectionResult.id,
+              attributes: [
+                {
+                  key: orderParams.attributeKey,
+                  value: orderParams.attributeValue,
+                },
+              ],
+            },
+          };
+
+          schemaHash = generateSchemaHash(schema);
+
+          // Fetch all tokens matching the attributes
+          const tokens = await redb.manyOrNone(
+            `
+              SELECT token_attributes.token_id
+              FROM token_attributes
+              WHERE token_attributes.collection_id = $/collection/
+              AND token_attributes.key = $/key/
+              AND token_attributes.value = $/value/
+              ORDER BY token_attributes.token_id
+            `,
+            {
+              collection: collectionResult.id,
+              key: orderParams.attributeKey,
+              value: orderParams.attributeValue,
+            }
+          );
+
+          const tokensIds = tokens.map((r) => r.token_id);
+          const merkleTree = generateMerkleTree(tokensIds);
+
+          tokenSetId = `list:${orderParams.contract}:${merkleTree.getHexRoot()}`;
+
+          await tokenSet.tokenList.save([
+            {
+              id: tokenSetId,
+              schema,
+              schemaHash: generateSchemaHash(schema),
+              items: {
+                contract: orderParams.contract,
+                tokenIds: tokensIds,
+              },
+            } as TokenSet,
+          ]);
+
           break;
         }
       }
