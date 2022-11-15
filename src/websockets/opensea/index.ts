@@ -76,31 +76,38 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
   );
 
   try {
-    const columns = new pgp.helpers.ColumnSet(
-      ["event_type", "event_timestamp", "order_hash", "maker", "data"],
-      { table: "opensea_websocket_events" }
-    );
-
     /* eslint-disable @typescript-eslint/no-explicit-any */
-    const query = pgp.helpers.insert(
+    const query = pgp.as.format(
+      `
+      INSERT INTO opensea_websocket_events (
+        event_type,
+        event_timestamp,
+        order_hash,
+        maker,
+        data
+      ) VALUES (
+        $/eventType/,
+        $/eventTimestamp/,
+        $/orderHash/,
+        $/maker/,
+        $/data/
+      )
+    `,
       {
-        event_type: event.event_type,
-        event_timestamp: (event.payload as any).event_timestamp,
-        order_hash: (event.payload as any).order_hash,
+        eventType: event.event_type,
+        eventTimestamp: (event.payload as any).event_timestamp,
+        orderHash: (event.payload as any).order_hash,
         maker: (event.payload as any).maker?.address,
         data: event,
-      },
-      columns
+      }
     );
 
-    logger.info(
+    logger.error(
       "opensea-websocket",
-      `saveEvent query. query=${query}, event_type=${event.event_type}, event=${JSON.stringify(
-        event
-      )}`
+      `saveEvent query. event=${JSON.stringify(event)}, query=${query}`
     );
 
-    await idb.none(query);
+    await idb.any(query);
   } catch (error) {
     logger.error(
       "opensea-websocket",
