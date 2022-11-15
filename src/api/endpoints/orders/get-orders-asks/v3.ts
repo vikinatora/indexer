@@ -328,7 +328,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
         `orders.created_at <= to_timestamp($/endTimestamp/)`,
         `orders.side = 'sell'`,
       ];
-      
+
       let communityFilter = "";
       let orderStatusFilter;
 
