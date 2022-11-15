@@ -512,10 +512,10 @@ export const getOrdersBidsV4Options: RouteOptions = {
           metadata: query.includeMetadata ? r.metadata : undefined,
           source: {
             id: source?.address,
+            domain: source?.domain,
             name: source?.metadata.title || source?.name,
             icon: source?.getIcon(),
             url: source?.metadata.url,
-            domain: source?.domain,
           },
           feeBps: Number(r.fee_bps),
           feeBreakdown: r.fee_breakdown,

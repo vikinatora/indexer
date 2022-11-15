@@ -13,6 +13,7 @@ import { getOrderSourceByOrderKind, OrderKind } from "@/orderbook/orders";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
 import { JoiOrderMetadata } from "@/common/joi";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
 const version = "v4";
 
@@ -175,14 +176,20 @@ export const getUserActivityV4Options: RouteOptions = {
       const result = [];
 
       for (const activity of activities) {
-        let orderSource;
+        let source: SourcesEntity | undefined;
 
         if (activity.order) {
           const orderSourceIdInt =
             activity.order.sourceIdInt ||
             (await getOrderSourceByOrderKind(activity.order.kind! as OrderKind))?.id;
 
-          orderSource = orderSourceIdInt ? sources.get(orderSourceIdInt) : undefined;
+          if (activity.tokenId && activity.contract) {
+            const contract = activity.contract;
+            const tokenId = activity.tokenId;
+            source = orderSourceIdInt
+              ? sources.get(orderSourceIdInt, contract, tokenId)
+              : undefined;
+          }
         }
 
         result.push({
@@ -207,13 +214,13 @@ export const getUserActivityV4Options: RouteOptions = {
                     ? "ask"
                     : "bid"
                   : undefined,
-                source: orderSource
-                  ? {
-                      domain: orderSource?.domain,
-                      name: orderSource?.metadata.title || orderSource?.name,
-                      icon: orderSource?.getIcon(),
-                    }
-                  : undefined,
+                source: {
+                  id: source?.address,
+                  domain: source?.domain,
+                  name: source?.metadata.title || source?.name,
+                  icon: source?.getIcon(),
+                  url: source?.metadata.url,
+                },
                 metadata: activity.order.metadata || undefined,
               }
             : undefined,
