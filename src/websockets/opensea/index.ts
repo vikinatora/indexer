@@ -70,11 +70,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 }
 
 const saveEvent = async (event: BaseStreamMessage<unknown>) => {
-  logger.info(
-    "opensea-websocket",
-    `saveEvent. event_type=${event.event_type}, event=${JSON.stringify(event)}`
-  );
-
   try {
     /* eslint-disable @typescript-eslint/no-explicit-any */
     const query = pgp.as.format(
@@ -102,12 +97,12 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
       }
     );
 
-    logger.error(
-      "opensea-websocket",
-      `saveEvent query. event=${JSON.stringify(event)}, query=${query}`
-    );
+    const queryResult = await idb.result(query);
 
-    await idb.any(query);
+    logger.info(
+      "opensea-websocket",
+      `saveEvent query. event=${JSON.stringify(event)}, query=${query}, queryResult=${queryResult}`
+    );
   } catch (error) {
     logger.error(
       "opensea-websocket",
