@@ -134,6 +134,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             orderId = leftHash;
             side = "sell";
             maker = result[0][0].toLowerCase();
+            // taker will be overwritten in extractAttributionData step if router is used
+            taker = callTrace.to.toLowerCase();
             nftAssetType = result[0][2];
             nftData = result[0][3];
 
@@ -176,6 +178,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
             side = "buy";
             maker = result[0][0].toLowerCase();
+            // taker will be overwritten in extractAttributionData step if router is used
+            taker = callTrace.from.toLowerCase();
             nftAssetType = result[0][2];
             nftData = result[0][3];
 
@@ -219,6 +223,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             const rightAsset = orderLeft.takeAsset;
 
             maker = orderLeft.maker.toLowerCase();
+            // taker will be overwritten in extractAttributionData step if router is used
             taker = orderRight.maker.toLowerCase();
             side = [ERC721, ERC1155].includes(leftAsset.assetClass) ? "sell" : "buy";
 
