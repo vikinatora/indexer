@@ -143,6 +143,14 @@ export const generateListingDetailsV5 = (
   };
 
   switch (order.kind) {
+    case "cryptopunks": {
+      return {
+        kind: "cryptopunks",
+        ...common,
+        order: new Sdk.CryptoPunks.Order(config.chainId, order.rawData),
+      };
+    }
+
     case "foundation": {
       return {
         kind: "foundation",
@@ -392,6 +400,14 @@ export const generateListingDetailsV6 = (
   };
 
   switch (order.kind) {
+    case "cryptopunks": {
+      return {
+        kind: "cryptopunks",
+        ...common,
+        order: new Sdk.CryptoPunks.Order(config.chainId, order.rawData),
+      };
+    }
+
     case "foundation": {
       return {
         kind: "foundation",
