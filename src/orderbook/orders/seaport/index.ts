@@ -23,6 +23,7 @@ import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/u
 import { offChainCheck, offChainCheckPartial } from "@/orderbook/orders/seaport/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import * as royalties from "@/utils/royalties";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 
@@ -349,6 +350,42 @@ export const save = async (
         bps: price.eq(0) ? 0 : bn(amount).mul(10000).div(price).toNumber(),
       }));
 
+      // Handle: royalties on top
+      const missingRoyalties = [];
+      let missingRoyaltyAmount = bn(0);
+      if (info.side === "sell") {
+        const defaultRoyalties = await royalties.getDefaultRoyalties(info.contract);
+        for (const { bps, recipient } of defaultRoyalties) {
+          // Get any built-in royalty payment to the current recipient
+          const existingRoyalty = feeBreakdown.find(
+            (r) => r.kind === "royalty" && r.recipient === recipient
+          );
+
+          if (existingRoyalty) {
+            // Charge the difference if the built-in royalty is less than the default
+            if (existingRoyalty.bps < bps) {
+              const actualBps = bps - existingRoyalty.bps;
+              const amount = bn(price).mul(actualBps).div(10000).toString();
+              missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+
+              missingRoyalties.push({
+                amount,
+                recipient,
+              });
+            }
+          } else {
+            // Charge the full amount if the built-in royalty is missing
+            const amount = bn(price).mul(bps).div(10000).toString();
+            missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+
+            missingRoyalties.push({
+              amount,
+              recipient,
+            });
+          }
+        }
+      }
+
       // Handle: source
       const sources = await Sources.getInstance();
       let source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
@@ -412,6 +449,27 @@ export const save = async (
           }
           value = bn(prices.nativePrice);
         }
+      }
+
+      // Handle: normalized value
+      let normalizedValue: string | undefined;
+      let currencyNormalizedValue: string | undefined;
+      if (info.side === "sell") {
+        normalizedValue = bn(value).add(missingRoyaltyAmount).toString();
+
+        const prices = await getUSDAndNativePrices(
+          currency,
+          normalizedValue.toString(),
+          currentTime
+        );
+        if (!prices.nativePrice) {
+          // Getting the native price is a must
+          return results.push({
+            id,
+            status: "failed-to-convert-price",
+          });
+        }
+        currencyNormalizedValue = bn(prices.nativePrice).toString();
       }
 
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
@@ -480,9 +538,9 @@ export const save = async (
         dynamic: info.isDynamic ?? null,
         raw_data: order.params,
         expiration: validTo,
-        missing_royalties: null,
-        normalized_value: null,
-        currency_normalized_value: null,
+        missing_royalties: missingRoyalties,
+        normalized_value: normalizedValue || null,
+        currency_normalized_value: currencyNormalizedValue || null,
       });
 
       const unfillable =
@@ -746,6 +804,42 @@ export const save = async (
         }
       }
 
+      // Handle: royalties on top
+      const missingRoyalties = [];
+      let missingRoyaltyAmount = bn(0);
+      if (orderParams.side === "sell") {
+        const defaultRoyalties = await royalties.getDefaultRoyalties(orderParams.contract);
+        for (const { bps, recipient } of defaultRoyalties) {
+          // Get any built-in royalty payment to the current recipient
+          const existingRoyalty = feeBreakdown.find(
+            (r) => r.kind === "royalty" && r.recipient === recipient
+          );
+
+          if (existingRoyalty) {
+            // Charge the difference if the built-in royalty is less than the default
+            if (existingRoyalty.bps < bps) {
+              const actualBps = bps - existingRoyalty.bps;
+              const amount = bn(price).mul(actualBps).div(10000).toString();
+              missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+
+              missingRoyalties.push({
+                amount,
+                recipient,
+              });
+            }
+          } else {
+            // Charge the full amount if the built-in royalty is missing
+            const amount = bn(price).mul(bps).div(10000).toString();
+            missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+
+            missingRoyalties.push({
+              amount,
+              recipient,
+            });
+          }
+        }
+      }
+
       if (orderParams.side === "buy") {
         const feeAmount = price.mul(feeBps).div(10000);
         value = price.sub(feeAmount);
@@ -795,6 +889,27 @@ export const save = async (
           }
           value = bn(prices.nativePrice);
         }
+      }
+
+      // Handle: normalized value
+      let normalizedValue: string | undefined;
+      let currencyNormalizedValue: string | undefined;
+      if (orderParams.side === "sell") {
+        normalizedValue = bn(value).add(missingRoyaltyAmount).toString();
+
+        const prices = await getUSDAndNativePrices(
+          currency,
+          normalizedValue.toString(),
+          currentTime
+        );
+        if (!prices.nativePrice) {
+          // Getting the native price is a must
+          return results.push({
+            id,
+            status: "failed-to-convert-price",
+          });
+        }
+        currencyNormalizedValue = bn(prices.nativePrice).toString();
       }
 
       if (orderParams.side === "buy" && orderParams.kind === "single-token" && validateBidValue) {
@@ -862,9 +977,9 @@ export const save = async (
         dynamic: orderParams.isDynamic ?? null,
         raw_data: null,
         expiration: validTo,
-        missing_royalties: null,
-        normalized_value: null,
-        currency_normalized_value: null,
+        missing_royalties: missingRoyalties,
+        normalized_value: normalizedValue || null,
+        currency_normalized_value: currencyNormalizedValue || null,
       });
 
       const unfillable =
@@ -1204,6 +1319,9 @@ export const save = async (
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        { name: "missing_royalties", mod: ":json" },
+        "normalized_value",
+        "currency_normalized_value",
       ],
       {
         table: "orders",
