@@ -67,14 +67,43 @@ export const getCollectionsV5Options: RouteOptions = {
         .default(false)
         .description("If true, top bid will be returned in the response."),
       includeAttributes: Joi.boolean()
-        .when("id", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
+        .when("id", {
+          is: Joi.exist(),
+          then: Joi.allow(),
+          otherwise: Joi.when("slug", {
+            is: Joi.exist(),
+            then: Joi.allow(),
+            otherwise: Joi.forbidden(),
+          }),
+        })
         .description(
-          "If true, attributes will be included in the response. (supported only when filtering to a particular collection using `id`)"
+          "If true, attributes will be included in the response. (supported only when filtering to a particular collection using `id` or `slug`)"
         ),
       includeOwnerCount: Joi.boolean()
-        .when("id", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
+        .when("id", {
+          is: Joi.exist(),
+          then: Joi.allow(),
+          otherwise: Joi.when("slug", {
+            is: Joi.exist(),
+            then: Joi.allow(),
+            otherwise: Joi.forbidden(),
+          }),
+        })
         .description(
-          "If true, owner count will be included in the response. (supported only when filtering to a particular collection using `id`)"
+          "If true, owner count will be included in the response. (supported only when filtering to a particular collection using `id` or `slug`)"
+        ),
+      includeSalesCount: Joi.boolean()
+        .when("id", {
+          is: Joi.exist(),
+          then: Joi.allow(),
+          otherwise: Joi.when("slug", {
+            is: Joi.exist(),
+            then: Joi.allow(),
+            otherwise: Joi.forbidden(),
+          }),
+        })
+        .description(
+          "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. (supported only when filtering to a particular collection using `id` or `slug`)"
         ),
       includeSalesCount: Joi.boolean()
         .when("id", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
