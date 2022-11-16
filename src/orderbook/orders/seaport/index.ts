@@ -677,32 +677,24 @@ export const save = async (
             }
           );
 
-          const tokensIds = tokens.map((r) => r.token_id);
+          if (tokens.length) {
+            const tokensIds = tokens.map((r) => r.token_id);
+            const merkleTree = generateMerkleTree(tokensIds);
 
-          logger.info(
-            "orders-seaport-save-partial",
-            `handlePartialOrder - debug trait offer. collectionSlug=${
-              orderParams.collectionSlug
-            }, orderParams=${JSON.stringify(orderParams)}, collectionResult=${JSON.stringify(
-              collection
-            )}, tokens=${JSON.stringify(tokens)}`
-          );
+            tokenSetId = `list:${orderParams.contract}:${merkleTree.getHexRoot()}`;
 
-          const merkleTree = generateMerkleTree(tokensIds);
-
-          tokenSetId = `list:${orderParams.contract}:${merkleTree.getHexRoot()}`;
-
-          await tokenSet.tokenList.save([
-            {
-              id: tokenSetId,
-              schema,
-              schemaHash: generateSchemaHash(schema),
-              items: {
-                contract: orderParams.contract,
-                tokenIds: tokensIds,
-              },
-            } as TokenSet,
-          ]);
+            await tokenSet.tokenList.save([
+              {
+                id: tokenSetId,
+                schema,
+                schemaHash: generateSchemaHash(schema),
+                items: {
+                  contract: orderParams.contract,
+                  tokenIds: tokensIds,
+                },
+              } as TokenSet,
+            ]);
+          }
 
           break;
         }
