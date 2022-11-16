@@ -730,6 +730,16 @@ export const save = async (
           );
 
           const tokensIds = tokens.map((r) => r.token_id);
+
+          logger.info(
+            "orders-seaport-save-partial",
+            `handlePartialOrder - debug trait offer. collectionSlug=${
+              orderParams.collectionSlug
+            }, orderParams=${JSON.stringify(orderParams)}, collectionResult=${JSON.stringify(
+              collectionResult
+            )}, tokens=${JSON.stringify(tokens)}`
+          );
+
           const merkleTree = generateMerkleTree(tokensIds);
 
           tokenSetId = `list:${orderParams.contract}:${merkleTree.getHexRoot()}`;
