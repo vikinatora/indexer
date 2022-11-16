@@ -24,6 +24,8 @@ import { offChainCheck, offChainCheckPartial } from "@/orderbook/orders/seaport/
 import * as tokenSet from "@/orderbook/token-sets";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
+import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
+import { TokenSet } from "@/orderbook/token-sets/token-list";
 
 export type OrderInfo =
   | {
@@ -643,62 +645,10 @@ export const save = async (
         }
       }
 
-      let collectionResult;
-
-      if (orderParams.kind === "single-token") {
-        collectionResult = await redb.oneOrNone(
-          `SELECT 
-                    royalties
-                 FROM collections
-                 WHERE contract = $/contract/
-                 AND token_id_range @> $/tokenId/::NUMERIC(78, 0)`,
-          {
-            contract: toBuffer(orderParams.contract),
-            tokenId: orderParams.tokenId,
-          }
-        );
-      } else {
-        if (getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)) {
-          collectionResult = await redb.oneOrNone(
-            `
-                  SELECT
-                    royalties,
-                    token_set_id
-                  FROM collections
-                  WHERE contract = $/contract/ AND slug = $/collectionSlug/
-                `,
-            {
-              contract: toBuffer(orderParams.contract),
-              collectionSlug: orderParams.collectionSlug,
-            }
-          );
-        } else {
-          collectionResult = await redb.oneOrNone(
-            `
-                  SELECT
-                    royalties,
-                    token_set_id
-                  FROM collections
-                  WHERE id = $/id/
-                `,
-            {
-              id: orderParams.contract,
-            }
-          );
-        }
-
-        if (!collectionResult) {
-          logger.warn(
-            "orders-seaport-save",
-            `handlePartialOrder - No collection found. collectionSlug=${
-              orderParams.collectionSlug
-            }, orderParams=${JSON.stringify(orderParams)}`
-          );
-        }
-      }
+      const collection = await getCollection(orderParams);
 
       // Check and save: associated token set
-      const schemaHash = generateSchemaHash();
+      let schemaHash = generateSchemaHash();
 
       let tokenSetId: string | undefined;
       switch (orderParams.kind) {
@@ -721,8 +671,8 @@ export const save = async (
         }
 
         case "contract-wide": {
-          if (collectionResult?.token_set_id) {
-            tokenSetId = collectionResult.token_set_id;
+          if (collection?.token_set_id) {
+            tokenSetId = collection.token_set_id;
           }
 
           if (tokenSetId) {
@@ -753,6 +703,65 @@ export const save = async (
         }
 
         case "token-list": {
+          const schema = {
+            kind: "attribute",
+            data: {
+              collection: collection.id,
+              attributes: [
+                {
+                  key: orderParams.attributeKey,
+                  value: orderParams.attributeValue,
+                },
+              ],
+            },
+          };
+
+          schemaHash = generateSchemaHash(schema);
+
+          // Fetch all tokens matching the attributes
+          const tokens = await redb.manyOrNone(
+            `
+              SELECT token_attributes.token_id
+              FROM token_attributes
+              WHERE token_attributes.collection_id = $/collection/
+              AND token_attributes.key = $/key/
+              AND token_attributes.value = $/value/
+              ORDER BY token_attributes.token_id
+            `,
+            {
+              collection: collection.id,
+              key: orderParams.attributeKey,
+              value: orderParams.attributeValue,
+            }
+          );
+
+          const tokensIds = tokens.map((r) => r.token_id);
+
+          logger.info(
+            "orders-seaport-save-partial",
+            `handlePartialOrder - debug trait offer. collectionSlug=${
+              orderParams.collectionSlug
+            }, orderParams=${JSON.stringify(orderParams)}, collectionResult=${JSON.stringify(
+              collection
+            )}, tokens=${JSON.stringify(tokens)}`
+          );
+
+          const merkleTree = generateMerkleTree(tokensIds);
+
+          tokenSetId = `list:${orderParams.contract}:${merkleTree.getHexRoot()}`;
+
+          await tokenSet.tokenList.save([
+            {
+              id: tokenSetId,
+              schema,
+              schemaHash: generateSchemaHash(schema),
+              items: {
+                contract: orderParams.contract,
+                tokenIds: tokensIds,
+              },
+            } as TokenSet,
+          ]);
+
           break;
         }
       }
@@ -768,6 +777,11 @@ export const save = async (
       let price = bn(orderParams.price);
       let value = price;
 
+      if (bn(orderParams.amount).gt(1)) {
+        price = price.div(orderParams.amount);
+        value = value.div(orderParams.amount);
+      }
+
       // Handle: fees
       let feeBps = 250;
       const feeBreakdown = [
@@ -778,8 +792,8 @@ export const save = async (
         },
       ];
 
-      if (collectionResult) {
-        for (const royalty of collectionResult.royalties) {
+      if (collection) {
+        for (const royalty of collection.royalties) {
           feeBps += royalty.bps;
 
           feeBreakdown.push({
@@ -827,8 +841,8 @@ export const save = async (
       }
 
       if (orderParams.side === "buy") {
-        const feeAmount = bn(price).mul(feeBps).div(10000);
-        value = bn(price).sub(feeAmount);
+        const feeAmount = price.mul(feeBps).div(10000);
+        value = price.sub(feeAmount);
       }
 
       // Handle: source
@@ -920,7 +934,7 @@ export const save = async (
           }
         } catch (error) {
           logger.warn(
-            "orders-seaport-save",
+            "orders-seaport-save-partial",
             `Bid value validation - error. orderId=${id}, contract=${orderParams.contract}, tokenId=${tokenId}, error=${error}`
           );
         }
@@ -1417,7 +1431,69 @@ export const handleTokenList = async (
   }
 };
 
-export const getCollectionFloorAskValue = async (contract: string, tokenId: number) => {
+const getCollection = async (orderParams: PartialOrderComponents) => {
+  let collectionResult;
+
+  if (orderParams.kind === "single-token") {
+    collectionResult = await redb.oneOrNone(
+      `SELECT 
+                    id,
+                    royalties,
+                    token_set_id
+                 FROM collections
+                 WHERE contract = $/contract/
+                 AND token_id_range @> $/tokenId/::NUMERIC(78, 0)`,
+      {
+        contract: toBuffer(orderParams.contract),
+        tokenId: orderParams.tokenId,
+      }
+    );
+  } else {
+    if (getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)) {
+      collectionResult = await redb.oneOrNone(
+        `
+                  SELECT
+                    id,
+                    royalties,
+                    token_set_id
+                  FROM collections
+                  WHERE contract = $/contract/ AND slug = $/collectionSlug/
+                `,
+        {
+          contract: toBuffer(orderParams.contract),
+          collectionSlug: orderParams.collectionSlug,
+        }
+      );
+    } else {
+      collectionResult = await redb.oneOrNone(
+        `
+                  SELECT
+                    id,
+                    royalties,
+                    token_set_id
+                  FROM collections
+                  WHERE id = $/id/
+                `,
+        {
+          id: orderParams.contract,
+        }
+      );
+    }
+
+    if (!collectionResult) {
+      logger.warn(
+        "orders-seaport-save",
+        `getCollection - No collection found. collectionSlug=${
+          orderParams.collectionSlug
+        }, orderParams=${JSON.stringify(orderParams)}`
+      );
+    }
+  }
+
+  return collectionResult;
+};
+
+const getCollectionFloorAskValue = async (contract: string, tokenId: number) => {
   if (getNetworkSettings().multiCollectionContracts.includes(contract)) {
     const collection = await Collections.getByContractAndTokenId(contract, tokenId);
     return collection?.floorSellValue;
