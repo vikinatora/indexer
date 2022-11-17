@@ -141,15 +141,11 @@ export const getTokenActivityV3Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const result = _.map(activities, (activity) => {
-        let source: SourcesEntity | undefined;
-
         const orderSourceIdInt = activity.order?.sourceIdInt;
 
-        if (activity.tokenId && activity.contract) {
-          const contract = activity.contract;
-          const tokenId = activity.tokenId;
-          source = orderSourceIdInt ? sources.get(orderSourceIdInt, contract, tokenId) : undefined;
-        }
+        const source: SourcesEntity | undefined = orderSourceIdInt
+          ? sources.get(orderSourceIdInt, activity.contract, activity.tokenId ?? undefined)
+          : undefined;
 
         return {
           type: activity.type,
