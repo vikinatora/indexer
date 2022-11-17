@@ -451,6 +451,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/events/collections/floor-ask/v2",
+    options: eventsEndpoints.getCollectionsFloorAskV2Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/events/orders/v1",
     options: eventsEndpoints.getOrderEventsV1Options,
   });
