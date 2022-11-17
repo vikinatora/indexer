@@ -105,11 +105,6 @@ export const getCollectionsV5Options: RouteOptions = {
         .description(
           "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. (supported only when filtering to a particular collection using `id` or `slug`)"
         ),
-      includeSalesCount: Joi.boolean()
-        .when("id", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
-        .description(
-          "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. (supported only when filtering to a particular collection using `id`)"
-        ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
