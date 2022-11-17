@@ -48,22 +48,26 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       // EventType.TRAIT_OFFER
     ],
     async (event) => {
-      await saveEvent(event);
+      const isRailway = config.railwayStaticUrl !== "";
 
-      const orderParams = handleEvent(event.event_type as EventType, event.payload);
+      if (!isRailway) {
+        await saveEvent(event);
 
-      if (orderParams) {
-        const orderInfo: orderbookOrders.GenericOrderInfo = {
-          kind: "seaport",
-          info: {
-            kind: "partial",
-            orderParams,
-          } as orders.seaport.OrderInfo,
-          relayToArweave: false,
-          validateBidValue: true,
-        };
+        const orderParams = handleEvent(event.event_type as EventType, event.payload);
 
-        await orderbookOrders.addToQueue([orderInfo]);
+        if (orderParams) {
+          const orderInfo: orderbookOrders.GenericOrderInfo = {
+            kind: "seaport",
+            info: {
+              kind: "partial",
+              orderParams,
+            } as orders.seaport.OrderInfo,
+            relayToArweave: false,
+            validateBidValue: true,
+          };
+
+          await orderbookOrders.addToQueue([orderInfo]);
+        }
       }
     }
   );
