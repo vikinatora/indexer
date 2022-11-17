@@ -1,6 +1,7 @@
 // Exports
 
 export * as cryptopunks from "@/orderbook/orders/cryptopunks";
+export * as forward from "@/orderbook/orders/forward";
 export * as foundation from "@/orderbook/orders/foundation";
 export * as looksRare from "@/orderbook/orders/looks-rare";
 export * as seaport from "@/orderbook/orders/seaport";
@@ -11,6 +12,7 @@ export * as zora from "@/orderbook/orders/zora";
 export * as universe from "@/orderbook/orders/universe";
 export * as element from "@/orderbook/orders/element";
 export * as rarible from "@/orderbook/orders/rarible";
+export * as blur from "@/orderbook/orders/blur";
 
 // Imports
 
@@ -48,7 +50,7 @@ export type OrderKind =
   | "universe"
   | "nftx"
   | "blur"
-  | "rarible";
+  | "forward";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -141,6 +143,14 @@ export const generateListingDetailsV5 = (
   };
 
   switch (order.kind) {
+    case "cryptopunks": {
+      return {
+        kind: "cryptopunks",
+        ...common,
+        order: new Sdk.CryptoPunks.Order(config.chainId, order.rawData),
+      };
+    }
+
     case "foundation": {
       return {
         kind: "foundation",
@@ -390,6 +400,14 @@ export const generateListingDetailsV6 = (
   };
 
   switch (order.kind) {
+    case "cryptopunks": {
+      return {
+        kind: "cryptopunks",
+        ...common,
+        order: new Sdk.CryptoPunks.Order(config.chainId, order.rawData),
+      };
+    }
+
     case "foundation": {
       return {
         kind: "foundation",
@@ -589,6 +607,15 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.Universe.Order(config.chainId, order.rawData);
       return {
         kind: "universe",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
+    case "forward": {
+      const sdkOrder = new Sdk.Forward.Order(config.chainId, order.rawData);
+      return {
+        kind: "forward",
         ...common,
         order: sdkOrder,
       };

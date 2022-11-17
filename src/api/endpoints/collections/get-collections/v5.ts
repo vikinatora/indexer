@@ -67,15 +67,47 @@ export const getCollectionsV5Options: RouteOptions = {
         .default(false)
         .description("If true, top bid will be returned in the response."),
       includeAttributes: Joi.boolean()
-        .when("id", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
+        .when("id", {
+          is: Joi.exist(),
+          then: Joi.allow(),
+          otherwise: Joi.when("slug", {
+            is: Joi.exist(),
+            then: Joi.allow(),
+            otherwise: Joi.forbidden(),
+          }),
+        })
         .description(
-          "If true, attributes will be included in the response. (supported only when filtering to a particular collection using `id`)"
+          "If true, attributes will be included in the response. (supported only when filtering to a particular collection using `id` or `slug`)"
         ),
       includeOwnerCount: Joi.boolean()
-        .when("id", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
+        .when("id", {
+          is: Joi.exist(),
+          then: Joi.allow(),
+          otherwise: Joi.when("slug", {
+            is: Joi.exist(),
+            then: Joi.allow(),
+            otherwise: Joi.forbidden(),
+          }),
+        })
         .description(
-          "If true, owner count will be included in the response. (supported only when filtering to a particular collection using `id`)"
+          "If true, owner count will be included in the response. (supported only when filtering to a particular collection using `id` or `slug`)"
         ),
+      includeSalesCount: Joi.boolean()
+        .when("id", {
+          is: Joi.exist(),
+          then: Joi.allow(),
+          otherwise: Joi.when("slug", {
+            is: Joi.exist(),
+            then: Joi.allow(),
+            otherwise: Joi.forbidden(),
+          }),
+        })
+        .description(
+          "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. (supported only when filtering to a particular collection using `id` or `slug`)"
+        ),
+      normalizeRoyalties: Joi.boolean()
+        .default(false)
+        .description("If true, prices will include missing royalties to be added on-top."),
       sortBy: Joi.string()
         .valid(
           "1DayVolume",
@@ -176,6 +208,12 @@ export const getCollectionsV5Options: RouteOptions = {
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
           },
+          salesCount: {
+            "1day": Joi.number().unsafe().allow(null),
+            "7day": Joi.number().unsafe().allow(null),
+            "30day": Joi.number().unsafe().allow(null),
+            allTime: Joi.number().unsafe().allow(null),
+          },
           collectionBidSupported: Joi.boolean(),
           ownerCount: Joi.number().optional(),
           attributes: Joi.array()
@@ -220,7 +258,9 @@ export const getCollectionsV5Options: RouteOptions = {
             orders.value AS top_buy_value,
             orders.currency_price AS top_buy_currency_price,
             orders.source_id_int AS top_buy_source_id_int,
-            orders.currency_value AS top_buy_currency_value
+            orders.currency_value AS top_buy_currency_value,
+            orders.normalized_value AS top_buy_normalized_value,
+            orders.currency_normalized_value AS top_buy_currency_normalized_value
           FROM token_sets
           LEFT JOIN orders
             ON token_sets.top_buy_id = orders.id
@@ -268,6 +308,35 @@ export const getCollectionsV5Options: RouteOptions = {
             AND amount > 0
           ) z ON TRUE
         `;
+      }
+
+      let saleCountSelectQuery = "";
+      let saleCountJoinQuery = "";
+      if (query.includeSalesCount) {
+        saleCountSelectQuery = ", s.*";
+        saleCountJoinQuery = `
+        LEFT JOIN LATERAL (
+          SELECT
+            SUM(CASE
+                  WHEN fe.created_at > NOW() - INTERVAL '24 HOURS'
+                  THEN 1
+                  ELSE 0
+                END) AS day_sale_count,
+            SUM(CASE
+                  WHEN fe.created_at > NOW() - INTERVAL '7 DAYS'
+                  THEN 1
+                  ELSE 0
+                END) AS week_sale_count,
+            SUM(CASE
+                  WHEN fe.created_at > NOW() - INTERVAL '30 DAYS'
+                  THEN 1
+                  ELSE 0
+                END) AS month_sale_count,
+            COUNT(*) AS total_sale_count
+          FROM fill_events_2 fe
+          WHERE fe.contract = x.contract
+        ) s ON TRUE
+      `;
       }
 
       let baseQuery = `
@@ -446,6 +515,7 @@ export const getCollectionsV5Options: RouteOptions = {
           ${ownerCountSelectQuery}
           ${attributesSelectQuery}
           ${topBidSelectQuery}
+          ${saleCountSelectQuery}
         FROM x
         LEFT JOIN LATERAL (
           SELECT
@@ -460,10 +530,11 @@ export const getCollectionsV5Options: RouteOptions = {
             tokens.floor_sell_valid_from,
             tokens.floor_sell_valid_to AS floor_sell_valid_until,
             tokens.floor_sell_currency,
-            tokens.floor_sell_currency_value
+            tokens.floor_sell_currency_value,
+            orders.normalized_value AS floor_sell_normalized_value,
+            orders.currency_normalized_value AS floor_sell_currency_normalized_value
           FROM tokens
-          LEFT JOIN orders
-            ON tokens.floor_sell_id = orders.id
+          LEFT JOIN orders ON tokens.floor_sell_id = orders.id
           WHERE tokens.collection_id = x.id
           ORDER BY tokens.floor_sell_value
           LIMIT 1
@@ -471,6 +542,7 @@ export const getCollectionsV5Options: RouteOptions = {
         ${ownerCountJoinQuery}
         ${attributesJoinQuery}
         ${topBidJoinQuery}
+        ${saleCountJoinQuery}
       `;
 
       // Any further joins might not preserve sorting
@@ -522,8 +594,12 @@ export const getCollectionsV5Options: RouteOptions = {
                 ? await getJoiPriceObject(
                     {
                       gross: {
-                        amount: r.floor_sell_currency_value ?? r.floor_sell_value,
-                        nativeAmount: r.floor_sell_value,
+                        amount: query.normalizeRoyalties
+                          ? r.floor_sell_currency_normalized_value ?? r.floor_sell_value
+                          : r.floor_sell_currency_value ?? r.floor_sell_value,
+                        nativeAmount: query.normalizeRoyalties
+                          ? r.floor_sell_normalized_value ?? r.floor_sell_value
+                          : r.floor_sell_value,
                       },
                     },
                     floorAskCurrency
@@ -549,8 +625,12 @@ export const getCollectionsV5Options: RouteOptions = {
                     ? await getJoiPriceObject(
                         {
                           net: {
-                            amount: r.top_buy_currency_value ?? r.top_buy_value,
-                            nativeAmount: r.top_buy_value,
+                            amount: query.normalizeRoyalties
+                              ? r.top_buy_currency_normalized_value ?? r.top_buy_value
+                              : r.top_buy_currency_value ?? r.top_buy_value,
+                            nativeAmount: query.normalizeRoyalties
+                              ? r.top_buy_normalized_value ?? r.top_buy_value
+                              : r.top_buy_value,
                           },
                           gross: {
                             amount: r.top_buy_currency_price ?? r.top_buy_price,
@@ -598,6 +678,14 @@ export const getCollectionsV5Options: RouteOptions = {
                 ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
                 : null,
             },
+            salesCount: query.includeSalesCount
+              ? {
+                  "1day": r.day_sale_count,
+                  "7day": r.week_sale_count,
+                  "30day": r.month_sale_count,
+                  allTime: r.total_sale_count,
+                }
+              : undefined,
             collectionBidSupported: Number(r.token_count) <= config.maxTokenSetSize,
             ownerCount: query.includeOwnerCount ? Number(r.owner_count) : undefined,
             attributes: query.includeAttributes

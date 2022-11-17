@@ -15,7 +15,6 @@ import { generateBidDetailsV5 } from "@/orderbook/orders";
 import { getNftApproval } from "@/orderbook/orders/common/helpers";
 
 const version = "v4";
-
 export const getExecuteSellV4Options: RouteOptions = {
   description: "Sell tokens (accept bids)",
   tags: ["api", "x-deprecated"],
@@ -224,7 +223,9 @@ export const getExecuteSellV4Options: RouteOptions = {
         return { path };
       }
 
-      const router = new Sdk.RouterV5.Router(config.chainId, baseProvider);
+      const router = new Sdk.RouterV5.Router(config.chainId, baseProvider, {
+        x2y2ApiKey: config.x2y2ApiKey,
+      });
       const tx = await router.fillBidTx(bidDetails!, payload.taker, {
         source: payload.source,
       });
