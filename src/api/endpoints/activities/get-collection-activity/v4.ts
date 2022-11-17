@@ -156,6 +156,8 @@ export const getCollectionActivityV4Options: RouteOptions = {
           const contract = activity.contract;
           const tokenId = activity.tokenId;
           source = orderSourceIdInt ? sources.get(orderSourceIdInt, contract, tokenId) : undefined;
+        } else {
+          source = orderSourceIdInt ? sources.get(orderSourceIdInt) : undefined;
         }
 
         return {
