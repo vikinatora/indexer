@@ -43,13 +43,9 @@ export const offChainCheck = async (
     }
   }
 
-  // Check: order's nonce was not individually cancelled
-  const nonceCancelled = await commonHelpers.isNonceCancelled(
-    `blur`,
-    order.params.trader,
-    order.params.nonce
-  );
-  if (nonceCancelled) {
+  // Check: order has a valid nonce
+  const minNonce = await commonHelpers.getMinNonce("blur", order.params.trader);
+  if (!minNonce.eq(order.params.nonce)) {
     throw new Error("cancelled");
   }
 
@@ -72,7 +68,7 @@ export const offChainCheck = async (
             .fetchAndUpdateFtApproval(
               order.params.paymentToken,
               order.params.trader,
-              Sdk.Blur.Addresses.Exchange[config.chainId]
+              Sdk.Blur.Addresses.ExecutionDelegate[config.chainId]
             )
             .then((a) => a.value)
         ).lt(bn(order.params.price))
@@ -92,7 +88,7 @@ export const offChainCheck = async (
       hasBalance = false;
     }
 
-    const operator = Sdk.Blur.Addresses.Exchange[config.chainId];
+    const operator = Sdk.Blur.Addresses.ExecutionDelegate[config.chainId];
 
     // Check: maker has set the proper approval
     const nftApproval = await commonHelpers.getNftApproval(
