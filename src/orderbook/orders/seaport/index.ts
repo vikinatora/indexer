@@ -1428,12 +1428,12 @@ const getCollection = async (orderParams: PartialOrderComponents) => {
     collectionResult = await redb.oneOrNone(
       `
         SELECT
-          collections.id,
-          collections.new_royalties,
-          collections.token_set_id
-        FROM collections
-        WHERE collections.contract = $/contract/
-          AND collections.token_id_range @> $/tokenId/::NUMERIC(78, 0)
+          collections.new_royalties
+        FROM tokens
+        JOIN collections ON tokens.collection_id = collections.id
+        WHERE tokens.contract = $/contract/
+        AND tokens.token_id = $/tokenId/
+        LIMIT 1
       `,
       {
         contract: toBuffer(orderParams.contract),
