@@ -332,11 +332,19 @@ export const save = async (
       ];
 
       let openSeaRoyalties: Royalty[];
+      const openSeaRoyaltiesSchema = metadata?.target === "opensea" ? "opensea" : "default";
 
       if (order.params.kind === "single-token") {
-        openSeaRoyalties = await royalties.getRoyalties(info.contract, info.tokenId, "opensea");
+        openSeaRoyalties = await royalties.getRoyalties(
+          info.contract,
+          info.tokenId,
+          openSeaRoyaltiesSchema
+        );
       } else {
-        openSeaRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "opensea");
+        openSeaRoyalties = await royalties.getRoyaltiesByTokenSet(
+          tokenSetId,
+          openSeaRoyaltiesSchema
+        );
       }
 
       const feeBreakdown = info.fees.map(({ recipient, amount }) => ({
