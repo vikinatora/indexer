@@ -24,6 +24,7 @@ import { offChainCheck, offChainCheckPartial } from "@/orderbook/orders/seaport/
 import * as tokenSet from "@/orderbook/token-sets";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
+import { Royalty } from "@/utils/royalties";
 
 export type OrderInfo =
   | {
@@ -329,7 +330,14 @@ export const save = async (
         "0x8de9c5a032463c561423387a9648c5c7bcc5bc90",
         "0x0000a26b00c1f0df003000390027140000faa719",
       ];
-      const openSeaRoyalties = await royalties.getRoyalties(info.contract, info.tokenId, "opensea");
+
+      let openSeaRoyalties: Royalty[];
+
+      if (order.params.kind === "single-token") {
+        openSeaRoyalties = await royalties.getRoyalties(info.contract, info.tokenId, "opensea");
+      } else {
+        openSeaRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "opensea");
+      }
 
       const feeBreakdown = info.fees.map(({ recipient, amount }) => ({
         kind: openSeaRoyalties.map(({ recipient }) => recipient).includes(recipient.toLowerCase())
