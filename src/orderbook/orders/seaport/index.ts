@@ -644,9 +644,11 @@ export const save = async (
           `
             SELECT
               collections.new_royalties
-            FROM collections
-            WHERE collections.contract = $/contract/
-              AND collections.token_id_range @> $/tokenId/::NUMERIC(78, 0)
+            FROM tokens
+            JOIN collections ON tokens.collection_id = collections.id
+            WHERE tokens.contract = $/contract/
+            AND tokens.token_id = $/tokenId/
+            LIMIT 1
           `,
           {
             contract: toBuffer(orderParams.contract),
