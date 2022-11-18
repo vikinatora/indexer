@@ -640,61 +640,7 @@ export const save = async (
         }
       }
 
-      let collectionResult;
-      if (orderParams.kind === "single-token") {
-        collectionResult = await redb.oneOrNone(
-          `
-            SELECT
-              collections.new_royalties
-            FROM collections
-            WHERE collections.contract = $/contract/
-              AND collections.token_id_range @> $/tokenId/::NUMERIC(78, 0)
-          `,
-          {
-            contract: toBuffer(orderParams.contract),
-            tokenId: orderParams.tokenId,
-          }
-        );
-      } else {
-        if (getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)) {
-          collectionResult = await redb.oneOrNone(
-            `
-              SELECT
-                collections.new_royalties,
-                collections.token_set_id
-              FROM collections
-              WHERE collections.contract = $/contract/
-                AND collections.slug = $/collectionSlug/
-            `,
-            {
-              contract: toBuffer(orderParams.contract),
-              collectionSlug: orderParams.collectionSlug,
-            }
-          );
-        } else {
-          collectionResult = await redb.oneOrNone(
-            `
-              SELECT
-                collections.new_royalties,
-                collections.token_set_id
-              FROM collections
-              WHERE collections.id = $/id/
-            `,
-            {
-              id: orderParams.contract,
-            }
-          );
-        }
-
-        if (!collectionResult) {
-          logger.warn(
-            "orders-seaport-save",
-            `handlePartialOrder - No collection found. collectionSlug=${
-              orderParams.collectionSlug
-            }, orderParams=${JSON.stringify(orderParams)}`
-          );
-        }
-      }
+      const collection = await getCollection(orderParams);
 
       // Check and save: associated token set
       let schemaHash = generateSchemaHash();
@@ -833,8 +779,8 @@ export const save = async (
         },
       ];
 
-      if (collectionResult) {
-        for (const royalty of collectionResult.new_royalties?.["opensea"] ?? []) {
+      if (collection) {
+        for (const royalty of collection.new_royalties?.["opensea"] ?? []) {
           feeBps += royalty.bps;
 
           feeBreakdown.push({
@@ -1478,16 +1424,17 @@ export const handleTokenList = async (
 
 const getCollection = async (orderParams: PartialOrderComponents) => {
   let collectionResult;
-
   if (orderParams.kind === "single-token") {
     collectionResult = await redb.oneOrNone(
-      `SELECT 
-                    id,
-                    royalties,
-                    token_set_id
-                 FROM collections
-                 WHERE contract = $/contract/
-                 AND token_id_range @> $/tokenId/::NUMERIC(78, 0)`,
+      `
+        SELECT
+          collections.id,
+          collections.new_royalties,
+          collections.token_set_id
+        FROM collections
+        WHERE collections.contract = $/contract/
+          AND collections.token_id_range @> $/tokenId/::NUMERIC(78, 0)
+      `,
       {
         contract: toBuffer(orderParams.contract),
         tokenId: orderParams.tokenId,
@@ -1497,13 +1444,14 @@ const getCollection = async (orderParams: PartialOrderComponents) => {
     if (getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)) {
       collectionResult = await redb.oneOrNone(
         `
-                  SELECT
-                    id,
-                    royalties,
-                    token_set_id
-                  FROM collections
-                  WHERE contract = $/contract/ AND slug = $/collectionSlug/
-                `,
+          SELECT
+            collections.id,
+            collections.new_royalties,
+            collections.token_set_id
+          FROM collections
+          WHERE collections.contract = $/contract/
+            AND collections.slug = $/collectionSlug/
+        `,
         {
           contract: toBuffer(orderParams.contract),
           collectionSlug: orderParams.collectionSlug,
@@ -1512,13 +1460,13 @@ const getCollection = async (orderParams: PartialOrderComponents) => {
     } else {
       collectionResult = await redb.oneOrNone(
         `
-                  SELECT
-                    id,
-                    royalties,
-                    token_set_id
-                  FROM collections
-                  WHERE id = $/id/
-                `,
+          SELECT
+            collections.id,
+            collections.new_royalties,
+            collections.token_set_id
+          FROM collections
+          WHERE collections.id = $/id/
+        `,
         {
           id: orderParams.contract,
         }
