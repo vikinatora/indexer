@@ -1428,14 +1428,16 @@ const getCollection = async (orderParams: PartialOrderComponents) => {
   if (orderParams.kind === "single-token") {
     collectionResult = await redb.oneOrNone(
       `
-        SELECT
-          collections.new_royalties
-        FROM tokens
-        JOIN collections ON tokens.collection_id = collections.id
-        WHERE tokens.contract = $/contract/
-        AND tokens.token_id = $/tokenId/
-        LIMIT 1
-      `,
+            SELECT
+              collections.id,
+              collections.new_royalties,
+              collections.token_set_id
+            FROM tokens
+            JOIN collections ON tokens.collection_id = collections.id
+            WHERE tokens.contract = $/contract/
+            AND tokens.token_id = $/tokenId/
+            LIMIT 1
+          `,
       {
         contract: toBuffer(orderParams.contract),
         tokenId: orderParams.tokenId,
@@ -1445,14 +1447,14 @@ const getCollection = async (orderParams: PartialOrderComponents) => {
     if (getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)) {
       collectionResult = await redb.oneOrNone(
         `
-          SELECT
-            collections.id,
-            collections.new_royalties,
-            collections.token_set_id
-          FROM collections
-          WHERE collections.contract = $/contract/
-            AND collections.slug = $/collectionSlug/
-        `,
+              SELECT
+                collections.id,
+                collections.new_royalties,
+                collections.token_set_id
+              FROM collections
+              WHERE collections.contract = $/contract/
+                AND collections.slug = $/collectionSlug/
+            `,
         {
           contract: toBuffer(orderParams.contract),
           collectionSlug: orderParams.collectionSlug,
@@ -1461,25 +1463,16 @@ const getCollection = async (orderParams: PartialOrderComponents) => {
     } else {
       collectionResult = await redb.oneOrNone(
         `
-          SELECT
-            collections.id,
-            collections.new_royalties,
-            collections.token_set_id
-          FROM collections
-          WHERE collections.id = $/id/
-        `,
+              SELECT
+                collections.id,
+                collections.new_royalties,
+                collections.token_set_id
+              FROM collections
+              WHERE collections.id = $/id/
+            `,
         {
           id: orderParams.contract,
         }
-      );
-    }
-
-    if (!collectionResult) {
-      logger.warn(
-        "orders-seaport-save",
-        `getCollection - No collection found. collectionSlug=${
-          orderParams.collectionSlug
-        }, orderParams=${JSON.stringify(orderParams)}`
       );
     }
   }
