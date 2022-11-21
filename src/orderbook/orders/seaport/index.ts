@@ -1425,6 +1425,7 @@ export const handleTokenList = async (
 
 const getCollection = async (orderParams: PartialOrderComponents) => {
   let collectionResult;
+
   if (orderParams.kind === "single-token") {
     collectionResult = await redb.oneOrNone(
       `
