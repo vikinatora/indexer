@@ -1430,7 +1430,9 @@ const getCollection = async (orderParams: PartialOrderComponents) => {
     collectionResult = await redb.oneOrNone(
       `
             SELECT
-              collections.new_royalties
+              collections.id,
+              collections.new_royalties,
+              collections.token_set_id
             FROM tokens
             JOIN collections ON tokens.collection_id = collections.id
             WHERE tokens.contract = $/contract/
@@ -1447,6 +1449,7 @@ const getCollection = async (orderParams: PartialOrderComponents) => {
       collectionResult = await redb.oneOrNone(
         `
               SELECT
+                collections.id,
                 collections.new_royalties,
                 collections.token_set_id
               FROM collections
@@ -1462,6 +1465,7 @@ const getCollection = async (orderParams: PartialOrderComponents) => {
       collectionResult = await redb.oneOrNone(
         `
               SELECT
+                collections.id,
                 collections.new_royalties,
                 collections.token_set_id
               FROM collections
@@ -1470,15 +1474,6 @@ const getCollection = async (orderParams: PartialOrderComponents) => {
         {
           id: orderParams.contract,
         }
-      );
-    }
-
-    if (!collectionResult) {
-      logger.warn(
-        "orders-seaport-save",
-        `handlePartialOrder - No collection found. collectionSlug=${
-          orderParams.collectionSlug
-        }, orderParams=${JSON.stringify(orderParams)}`
       );
     }
   }
