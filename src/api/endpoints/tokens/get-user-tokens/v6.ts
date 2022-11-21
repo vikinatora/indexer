@@ -5,7 +5,14 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { formatEth, fromBuffer, regex, toBuffer } from "@/common/utils";
+import {
+  buildContinuation,
+  formatEth,
+  fromBuffer,
+  regex,
+  splitContinuation,
+  toBuffer,
+} from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
@@ -13,9 +20,9 @@ import { getJoiPriceObject, JoiPrice } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
 
-const version = "v5";
+const version = "v6";
 
-export const getUserTokensV5Options: RouteOptions = {
+export const getUserTokensV6Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 60000,
@@ -79,12 +86,9 @@ export const getUserTokensV5Options: RouteOptions = {
         .valid("asc", "desc")
         .default("desc")
         .description("Order the items are returned in the response."),
-      offset: Joi.number()
-        .integer()
-        .min(0)
-        .max(10000)
-        .default(0)
-        .description("Use offset to request the next batch of items."),
+      continuation: Joi.string()
+        .pattern(regex.base64)
+        .description("Use continuation token to request next offset of items."),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -131,6 +135,7 @@ export const getUserTokensV5Options: RouteOptions = {
           }),
         })
       ),
+      continuation: Joi.string().pattern(regex.base64).allow(null),
     }).label(`getUserTokens${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`get-user-tokens-${version}-handler`, `Wrong response schema: ${error}`);
@@ -143,8 +148,6 @@ export const getUserTokensV5Options: RouteOptions = {
 
     // Filters
     (params as any).user = toBuffer(params.user);
-    (params as any).offset = query.offset;
-    (params as any).limit = query.limit;
 
     const collectionFilters: string[] = [];
 
@@ -212,17 +215,6 @@ export const getUserTokensV5Options: RouteOptions = {
       }
 
       (query as any).tokensFilter = _.join(tokensFilter, ",");
-    }
-
-    let sortByFilter = "";
-    switch (query.sortBy) {
-      case "acquiredAt": {
-        sortByFilter = `
-            ORDER BY
-              b.acquired_at ${query.sortDirection}
-          `;
-        break;
-      }
     }
 
     let tokensJoin = `
@@ -301,8 +293,8 @@ export const getUserTokensV5Options: RouteOptions = {
     }
 
     try {
-      const baseQuery = `
-        SELECT b.contract, b.token_id, b.token_count, b.acquired_at,
+      let baseQuery = `
+        SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at,
                t.name, t.image, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
@@ -327,14 +319,50 @@ export const getUserTokensV5Options: RouteOptions = {
           ) AS b
           ${tokensJoin}
           JOIN collections c ON c.id = t.collection_id
-        ${sortByFilter}
-        OFFSET $/offset/
-        LIMIT $/limit/
+      `;
+
+      const conditions: string[] = [];
+
+      if (query.continuation) {
+        const [acquiredAt, collectionId, tokenId] = splitContinuation(
+          query.continuation,
+          /^[0-9]+_[A-Za-z0-9]+_[0-9]+$/
+        );
+
+        (query as any).acquiredAt = acquiredAt;
+        (query as any).collectionId = collectionId;
+        (query as any).tokenId = tokenId;
+        query.sortDirection = query.sortDirection || "desc";
+        const sign = query.sortDirection == "desc" ? "<=" : ">=";
+        conditions.push(
+          `acquired_at ${sign} to_timestamp($/acquiredAt/) AND ((collection_id = $/collectionId/ AND b.token_id > $/tokenId/) OR (collection_id != $/collectionId/))`
+        );
+      }
+
+      if (conditions.length) {
+        baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
+      }
+
+      baseQuery += `
+      ORDER BY
+        acquired_at ${query.sortDirection}, t.token_id ASC
+      LIMIT $/limit/
       `;
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });
-      const sources = await Sources.getInstance();
 
+      let continuation = null;
+      if (userTokens.length === query.limit) {
+        continuation = buildContinuation(
+          userTokens[userTokens.length - 1].acquired_at +
+            "_" +
+            userTokens[userTokens.length - 1].collection_id +
+            "_" +
+            userTokens[userTokens.length - 1].token_id
+        );
+      }
+
+      const sources = await Sources.getInstance();
       const result = userTokens.map(async (r) => {
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
@@ -347,10 +375,10 @@ export const getUserTokensV5Options: RouteOptions = {
         const topBidCurrency = r.top_bid_currency
           ? fromBuffer(r.top_bid_currency)
           : Sdk.Common.Addresses.Weth[config.chainId];
-        const source = r.floor_sell_value
+        const floorSellSource = r.floor_sell_value
           ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
           : undefined;
-
+        const acquiredTime = new Date(r.acquired_at * 1000).toISOString();
         return {
           token: {
             contract: contract,
@@ -406,19 +434,22 @@ export const getUserTokensV5Options: RouteOptions = {
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
               source: {
-                id: source?.address,
-                domain: source?.domain,
-                name: source?.metadata.title || source?.name,
-                icon: source?.getIcon(),
-                url: source?.metadata.url,
+                id: floorSellSource?.address,
+                domain: floorSellSource?.domain,
+                name: floorSellSource?.metadata.title || floorSellSource?.name,
+                icon: floorSellSource?.getIcon(),
+                url: floorSellSource?.metadata.url,
               },
             },
-            acquiredAt: r.acquired_at ? new Date(r.acquired_at).toISOString() : null,
+            acquiredAt: acquiredTime,
           },
         };
       });
 
-      return { tokens: await Promise.all(result) };
+      return {
+        tokens: await Promise.all(result),
+        continuation,
+      };
     } catch (error) {
       logger.error(`get-user-tokens-${version}-handler`, `Handler failure: ${error}`);
       throw error;
