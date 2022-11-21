@@ -12,6 +12,7 @@ import { offChainCheck } from "@/orderbook/orders/x2y2/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
 import * as royalties from "@/utils/royalties";
+import { Royalty } from "@/utils/royalties";
 
 export type OrderInfo = {
   orderParams: Sdk.X2Y2.Types.Order;
@@ -164,18 +165,53 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const side = order.params.type === "sell" ? "sell" : "buy";
       const price = bn(order.params.price);
 
+      // Handle: royalties
+      if (order.params.royalty_fee > 0) {
+        // Assume X2Y2 royalties match the OpenSea royalties (in reality X2Y2
+        // have their own proprietary royalty system which we do not index at
+        // the moment)
+        let openSeaRoyalties: Royalty[];
+
+        if (order.params.kind === "single-token") {
+          openSeaRoyalties = await royalties.getRoyalties(
+            order.params.nft.token,
+            order.params.nft.tokenId,
+            "opensea"
+          );
+        } else {
+          openSeaRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "opensea");
+        }
+
+        if (openSeaRoyalties.length) {
+          feeBreakdown.push({
+            kind: "royalty",
+            recipient: openSeaRoyalties[0].recipient,
+            bps: Math.floor(order.params.royalty_fee / 100),
+          });
+        }
+      }
+
       // Handle: royalties on top
       const missingRoyalties = [];
       let missingRoyaltyAmount = bn(0);
       if (side === "sell") {
-        const defaultRoyalties = await royalties.getDefaultRoyalties(order.params.nft.token);
-        for (const { bps, recipient } of defaultRoyalties) {
-          const amount = bn(price).mul(bps).div(10000).toString();
+        const defaultRoyalties = await royalties.getRoyalties(
+          order.params.nft.token,
+          order.params.nft.tokenId,
+          "default"
+        );
+
+        const totalBuiltInBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+        const totalDefaultBps = defaultRoyalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+        if (totalBuiltInBps < totalDefaultBps) {
+          const bpsDiff = totalDefaultBps - totalBuiltInBps;
+          const amount = bn(price).mul(bpsDiff).div(10000).toString();
           missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 
           missingRoyalties.push({
             amount,
-            recipient,
+            // TODO: We should probably split pro-rata across all royalty recipients
+            recipient: defaultRoyalties[0].recipient,
           });
         }
       }
