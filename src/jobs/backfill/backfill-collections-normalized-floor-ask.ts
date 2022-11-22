@@ -34,7 +34,7 @@ if (config.doBackgroundWork) {
       );
 
       if (collection) {
-        logger.info(QUEUE_NAME, `Backfilling collection. ${JSON.stringify(collection)}`);
+        logger.info(QUEUE_NAME, `Backfilling collection. collection=${collection.id}`);
 
         await idb.none(
           `
@@ -90,7 +90,7 @@ if (config.doBackgroundWork) {
   redlock
     .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
-      // await addToQueue();
+      await addToQueue();
     })
     .catch(() => {
       // Skip on any errors
@@ -98,5 +98,5 @@ if (config.doBackgroundWork) {
 }
 
 export const addToQueue = async () => {
-  await queue.add(randomUUID(), {});
+  await queue.add(randomUUID(), {}, { delay: 1000 });
 };
