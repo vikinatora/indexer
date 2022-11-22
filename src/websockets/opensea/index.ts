@@ -31,7 +31,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       transport: WebSocket,
     },
     onError: async (error) => {
-      logger.error("opensea-websocket", `network=${network}, error=${JSON.stringify(error)}`);
+      logger.warn("opensea-websocket", `network=${network}, error=${JSON.stringify(error)}`);
     },
   });
 
@@ -54,6 +54,14 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         const orderParams = handleEvent(event.event_type as EventType, event.payload);
 
         if (orderParams) {
+          /* eslint-disable @typescript-eslint/no-explicit-any */
+          logger.info(
+            "opensea-websocket",
+            `orderHash=${orderParams.hash}, eventType=${event.event_type}, protocolData=${
+              (event.payload as any).protocol_data
+            }`
+          );
+
           const orderInfo: orderbookOrders.GenericOrderInfo = {
             kind: "seaport",
             info: {
