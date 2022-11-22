@@ -74,11 +74,11 @@ if (config.doBackgroundWork) {
                     LIMIT 1
                 )
                 SELECT
-                    normalized_collection_floor_sell.normalized_floor_sell_id,
-                    normalized_collection_floor_sell.normalized_floor_sell_value,
-                    normalized_collection_floor_sell.normalized_floor_sell_maker,
-                    normalized_collection_floor_sell.source_id_int,
-                    normalized_collection_floor_sell.valid_between
+                    collection_normalized_floor_sell.normalized_floor_sell_id,
+                    collection_normalized_floor_sell.normalized_floor_sell_value,
+                    collection_normalized_floor_sell.normalized_floor_sell_maker,
+                    collection_normalized_floor_sell.source_id_int,
+                    collection_normalized_floor_sell.valid_between
                 FROM collection_normalized_floor_sell
                 UNION ALL
                 SELECT NULL, NULL, NULL, NULL, NULL
