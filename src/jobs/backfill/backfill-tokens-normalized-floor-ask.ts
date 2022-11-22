@@ -89,9 +89,9 @@ if (config.doBackgroundWork) {
                   ) x LEFT JOIN LATERAL (
                     SELECT
                       orders.id AS order_id,
-                      orders.normalized_value AS value,
+                      COALESCE(orders.normalized_value, orders."value") AS value,
                       orders.currency,
-                      orders.currency_normalized_value AS currency_value,
+                      COALESCE(orders.currency_normalized_value, orders.currency_value) AS currency_value,
                       orders.maker,
                       orders.valid_between,
                       orders.source_id_int,
@@ -106,7 +106,7 @@ if (config.doBackgroundWork) {
                       AND orders.fillability_status = 'fillable'
                       AND orders.approval_status = 'approved'
                       AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                    ORDER BY orders.normalized_value, orders.fee_bps
+                    ORDER BY COALESCE(orders.normalized_value, orders."value"), orders."value", orders.fee_bps
                     LIMIT 1
                   ) y ON TRUE
               ) z
