@@ -3,8 +3,9 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 
 const QUEUE_NAME = "token-updates-normalized-floor-ask-queue";
 
@@ -32,7 +33,7 @@ if (config.doBackgroundWork) {
 
       try {
         // Atomically update the cache and trigger an api event if needed
-        await idb.oneOrNone(
+        const sellOrderResult = await idb.oneOrNone(
           `
                 WITH z AS (
                   SELECT
@@ -165,6 +166,14 @@ if (config.doBackgroundWork) {
             txTimestamp: txTimestamp || null,
           }
         );
+
+        if (sellOrderResult) {
+          // Update collection floor
+          sellOrderResult.txHash = sellOrderResult.txHash
+            ? fromBuffer(sellOrderResult.txHash)
+            : null;
+          await collectionUpdatesNormalizedFloorAsk.addToQueue([sellOrderResult]);
+        }
       } catch (error) {
         logger.error(
           QUEUE_NAME,
