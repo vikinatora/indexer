@@ -42,6 +42,8 @@ import * as collectionsRefresh from "@/jobs/collections-refresh/collections-refr
 import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
 
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
+import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
+
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
@@ -119,6 +121,7 @@ export const allJobQueues = [
   collectionsRefreshCache.queue,
 
   collectionUpdatesFloorAsk.queue,
+  collectionUpdatesNormalizedFloorAsk.queue,
   collectionUpdatesMetadata.queue,
   rarity.queue,
   collectionUpdatesTopBid.queue,
