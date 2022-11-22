@@ -34,7 +34,8 @@ import * as arweaveSyncBackfill from "@/jobs/arweave-sync/backfill-queue";
 import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
 
 import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
-import * as backfillFixOpenSeaOrders from "@/jobs/backfill/backfill-fix-opensea-realtime-asks";
+import * as backfillTokensNormalizedFloorAsk from "@/jobs/backfill/backfill-tokens-normalized-floor-ask";
+import * as backfillCollectionsNormalizedFloorAsk from "@/jobs/backfill/backfill-collections-normalized-floor-ask";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -111,7 +112,8 @@ export const allJobQueues = [
   arweaveSyncRealtime.queue,
 
   backfillCollectionsRoyalties.queue,
-  backfillFixOpenSeaOrders.queue,
+  backfillTokensNormalizedFloorAsk.queue,
+  backfillCollectionsNormalizedFloorAsk.queue,
 
   currencies.queue,
 
