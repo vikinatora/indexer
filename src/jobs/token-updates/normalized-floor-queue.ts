@@ -168,6 +168,8 @@ if (config.doBackgroundWork) {
         );
 
         if (sellOrderResult) {
+          sellOrderResult.contract = fromBuffer(sellOrderResult.contract);
+
           // Update collection floor
           sellOrderResult.txHash = sellOrderResult.txHash
             ? fromBuffer(sellOrderResult.txHash)
