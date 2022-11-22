@@ -10,9 +10,6 @@ ALTER TABLE "tokens" ADD COLUMN "normalized_floor_sell_is_reservoir" BOOLEAN;
 ALTER TABLE "tokens" ADD COLUMN "normalized_floor_sell_currency" BYTEA;
 ALTER TABLE "tokens" ADD COLUMN "normalized_floor_sell_currency_value" NUMERIC(78, 0);
 
--- CREATE INDEX "tokens_contract_normalized_floor_sell_value_index"
---  ON "tokens" ("contract", "normalized_floor_sell_value");
-
 CREATE TABLE "token_normalized_floor_sell_events" (
   "id" BIGSERIAL NOT NULL,
   "kind" "token_floor_sell_event_kind_t" NOT NULL,
@@ -56,5 +53,7 @@ ALTER TABLE "tokens" DROP COLUMN "normalized_floor_sell_currency";
 ALTER TABLE "tokens" DROP COLUMN "normalized_floor_sell_currency_value";
 
 DROP INDEX "tokens_contract_normalized_floor_sell_value_index";
+
+DROP INDEX "tokens_collection_id_normalized_floor_sell_value_token_id_index";
 
 DROP TABLE "token_normalized_floor_sell_events";

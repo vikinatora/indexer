@@ -98,5 +98,5 @@ if (config.doBackgroundWork) {
 }
 
 export const addToQueue = async () => {
-  await queue.add(randomUUID(), {}, { delay: 1000 });
+  await queue.add(randomUUID(), {}, { delay: 500 });
 };
