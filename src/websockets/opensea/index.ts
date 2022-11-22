@@ -55,10 +55,12 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
         if (orderParams) {
           /* eslint-disable @typescript-eslint/no-explicit-any */
+          const protocolData = (event.payload as any).protocol_data;
+
           logger.info(
             "opensea-websocket",
             `orderHash=${orderParams.hash}, eventType=${event.event_type}, protocolData=${
-              (event.payload as any).protocol_data
+              protocolData ? JSON.stringify(protocolData) : null
             }`
           );
 

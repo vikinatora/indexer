@@ -7,7 +7,7 @@ import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
-import { toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 
 const QUEUE_NAME = "backfill-tokens-normalized-floor-ask-queue";
 
@@ -38,7 +38,14 @@ if (config.doBackgroundWork) {
       );
 
       if (token) {
-        logger.info(QUEUE_NAME, `Backfilling token. ${JSON.stringify(token)}`);
+        const contract = fromBuffer(token.contract);
+        const tokenId = token.token_id;
+        const tokenSetId = `token:${contract}:${tokenId}`;
+
+        logger.info(
+          QUEUE_NAME,
+          `Backfilling token. contract=${contract}, tokenId=${tokenId}, tokenSetId=${tokenSetId}`
+        );
 
         await idb.none(
           `
@@ -107,9 +114,9 @@ if (config.doBackgroundWork) {
                     AND tokens.token_id = $/tokenId/
           `,
           {
-            contract: toBuffer(token.contract),
-            tokenId: token.token_id,
-            tokenSetId: `token:${token.contract}:${token.token_id}`,
+            contract: toBuffer(contract),
+            tokenId,
+            tokenSetId,
           }
         );
 
@@ -126,7 +133,7 @@ if (config.doBackgroundWork) {
   redlock
     .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
-      await addToQueue();
+      // await addToQueue();
     })
     .catch(() => {
       // Skip on any errors
