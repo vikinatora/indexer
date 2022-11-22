@@ -36,6 +36,12 @@ export const getAttributesExploreV3Options: RouteOptions = {
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
+      excludeRangeTraits: Joi.boolean()
+        .default(false)
+        .description("If true, range traits will be excluded from the response."),
+      excludeNumberTraits: Joi.boolean()
+        .default(false)
+        .description("If true, number traits will be excluded from the response."),
       attributeKey: Joi.string().description(
         "Filter to a particular attribute key. Example: `Composition`"
       ),
@@ -116,12 +122,22 @@ export const getAttributesExploreV3Options: RouteOptions = {
     const query = request.query as any;
     const params = request.params as any;
     let attributeKeyFilter = "";
+    let excludeRangeFilter = "";
+    let excludeNumberFilter = "";
     let sortBy = "ORDER BY floor_sell_value DESC NULLS LAST";
     let selectQuery =
-      "SELECT attributes.id, floor_sell_value, token_count, on_sale_count, key, value, sample_images, recent_floor_values_info.*";
+      "SELECT attributes.id, kind, floor_sell_value, token_count, on_sale_count, key, value, sample_images, recent_floor_values_info.*";
 
     if (query.attributeKey) {
       attributeKeyFilter = `AND attributes.key = $/attributeKey/`;
+    }
+
+    if (query.excludeRangeTraits) {
+      excludeRangeFilter = "AND attributes.kind != 'range'";
+    }
+
+    if (query.excludeNumberTraits) {
+      excludeNumberFilter = "AND attributes.kind != 'number'";
     }
 
     // Sorting
@@ -201,6 +217,8 @@ export const getAttributesExploreV3Options: RouteOptions = {
             ) "recent_floor_values_info" ON TRUE
             WHERE attributes.collection_id = $/collection/
             ${attributeKeyFilter}
+            ${excludeRangeFilter}
+            ${excludeNumberFilter}
             ${sortBy}
             OFFSET $/offset/
             LIMIT $/limit/`;
