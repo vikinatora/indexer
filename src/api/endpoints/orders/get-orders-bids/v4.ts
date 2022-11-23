@@ -67,11 +67,11 @@ export const getOrdersBidsV4Options: RouteOptions = {
       status: Joi.string()
         .when("maker", {
           is: Joi.exist(),
-          then: Joi.valid("active", "inactive"),
+          then: Joi.valid("active", "inactive", "expired", "cancelled", "filled"),
           otherwise: Joi.valid("active"),
         })
         .description(
-          "active = currently valid, inactive = temporarily invalid, expired = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
+          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
       source: Joi.string()
         .pattern(regex.domain)
@@ -173,6 +173,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             .allow(null),
           expiration: Joi.number().required(),
           isReservoir: Joi.boolean().allow(null),
+          isDynamic: Joi.boolean(),
           createdAt: Joi.string().required(),
           updatedAt: Joi.string().required(),
           rawData: Joi.object().optional().allow(null),
@@ -300,8 +301,10 @@ export const getOrdersBidsV4Options: RouteOptions = {
           orders.currency,
           orders.currency_price,
           orders.currency_value,
+          dynamic,
           orders.normalized_value,
           orders.currency_normalized_value,
+          orders.missing_royalties,
           DATE_PART('epoch', LOWER(orders.valid_between)) AS valid_from,
           COALESCE(
             NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'),
@@ -386,6 +389,18 @@ export const getOrdersBidsV4Options: RouteOptions = {
             orderStatusFilter = `orders.fillability_status = 'no-balance' OR (orders.fillability_status = 'fillable' AND orders.approval_status != 'approved')`;
             break;
           }
+          case "expired": {
+            orderStatusFilter = `orders.fillability_status = 'expired'`;
+            break;
+          }
+          case "filled": {
+            orderStatusFilter = `orders.fillability_status = 'filled'`;
+            break;
+          }
+          case "cancelled": {
+            orderStatusFilter = `orders.fillability_status = 'cancelled'`;
+            break;
+          }
         }
 
         (query as any).maker = toBuffer(query.maker);
@@ -468,6 +483,24 @@ export const getOrdersBidsV4Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
+        const feeBreakdown = r.fee_breakdown;
+        let feeBps = Number(r.fee_bps);
+
+        if (query.normalizeRoyalties) {
+          for (let i = 0; i < r.missing_royalties.length; i++) {
+            const bps =
+              (r.missing_royalties[i].amount /
+                (r.normalized_value - Number(r.missing_royalties[i].amount))) *
+              10000;
+            const tempObj = {
+              bps: bps,
+              kind: "royalty",
+              recipient: r.missing_royalties[i].recipient,
+            };
+            feeBreakdown.push(tempObj);
+            feeBps += bps;
+          }
+        }
         let source: SourcesEntity | undefined;
 
         if (r.token_set_id?.startsWith("token")) {
@@ -519,12 +552,12 @@ export const getOrdersBidsV4Options: RouteOptions = {
             name: source?.getTitle(),
             icon: source?.getIcon(),
             url: source?.metadata.url,
-            domain: source?.domain,
           },
-          feeBps: Number(r.fee_bps),
-          feeBreakdown: r.fee_breakdown,
+          feeBps: feeBps,
+          feeBreakdown: feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
+          isDynamic: Boolean(r.dynamic),
           createdAt: new Date(r.created_at * 1000).toISOString(),
           updatedAt: new Date(r.updated_at).toISOString(),
           rawData: query.includeRawData ? r.raw_data : undefined,
