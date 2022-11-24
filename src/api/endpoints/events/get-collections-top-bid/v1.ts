@@ -1,12 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Request, RouteOptions } from "@hapi/hapi";
+import * as Sdk from "@reservoir0x/sdk";
+
 import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { buildContinuation, formatEth, fromBuffer, regex, splitContinuation } from "@/common/utils";
+import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
+import { getJoiPriceObject, JoiPrice } from "@/common/joi";
 
 const version = "v1";
 
@@ -62,7 +66,7 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
             contract: Joi.string().lowercase().pattern(regex.address).allow(null),
             tokenSetId: Joi.string().allow(null),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
-            price: Joi.number().unsafe().allow(null),
+            price: JoiPrice.allow(null),
             validUntil: Joi.number().unsafe().allow(null),
             source: Joi.string().allow(null, ""),
           }),
@@ -160,6 +164,23 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
       // Pagination
       baseQuery += ` LIMIT $/limit/`;
 
+      baseQuery = `
+      WITH x AS (${baseQuery})
+      SELECT
+        x.*,
+        p.*
+      FROM x
+      LEFT JOIN LATERAL (
+        SELECT
+        orders.currency AS top_buy_currency,
+        orders.price AS top_buy_price,
+        orders.value AS top_buy_value,
+        orders.currency_price AS top_buy_currency_price,
+        orders.currency_value AS top_buy_currency_value
+        FROM orders
+        WHERE orders.id = x.order_id
+      ) p ON TRUE`;
+
       const rawResult = await redb.manyOrNone(baseQuery, query);
 
       let continuation = null;
@@ -170,31 +191,50 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
       }
 
       const sources = await Sources.getInstance();
-      const result = rawResult.map((r) => ({
-        collection: {
-          id: r.collection_id,
-        },
-        topBid: {
-          orderId: r.order_id,
-          contract: r.contract ? fromBuffer(r.contract) : null,
-          tokenSetId: r.token_set_id,
-          maker: r.maker ? fromBuffer(r.maker) : null,
-          price: r.price ? formatEth(r.price) : null,
-          validUntil: r.price ? Number(r.valid_until) : null,
-          source: sources.get(r.order_source_id_int)?.name,
-        },
-        event: {
-          id: r.id,
-          previousPrice: r.previous_price ? formatEth(r.previous_price) : null,
-          kind: r.kind,
-          txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
-          txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
-          createdAt: new Date(r.created_at * 1000).toISOString(),
-        },
-      }));
+      const result = rawResult.map(async (r) => {
+        const topBidCurrency = r.top_buy_currency
+          ? fromBuffer(r.top_buy_currency)
+          : Sdk.Common.Addresses.Weth[config.chainId];
+
+        return {
+          collection: {
+            id: r.collection_id,
+          },
+          topBid: {
+            orderId: r.order_id,
+            contract: r.contract ? fromBuffer(r.contract) : null,
+            tokenSetId: r.token_set_id,
+            maker: r.maker ? fromBuffer(r.maker) : null,
+            price:
+              (await getJoiPriceObject(
+                {
+                  net: {
+                    amount: r.top_buy_currency_value ?? r.top_buy_value,
+                    nativeAmount: r.top_buy_value,
+                  },
+                  gross: {
+                    amount: r.top_buy_currency_price ?? r.top_buy_price,
+                    nativeAmount: r.top_buy_price,
+                  },
+                },
+                topBidCurrency
+              )) ?? null,
+            validUntil: r.price ? Number(r.valid_until) : null,
+            source: sources.get(r.order_source_id_int)?.name,
+          },
+          event: {
+            id: r.id,
+            previousPrice: r.previous_price ? formatEth(r.previous_price) : null,
+            kind: r.kind,
+            txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
+            txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
+            createdAt: new Date(r.created_at * 1000).toISOString(),
+          },
+        };
+      });
 
       return {
-        events: result,
+        events: await Promise.all(result),
         continuation,
       };
     } catch (error) {
