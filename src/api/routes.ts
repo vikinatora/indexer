@@ -1027,6 +1027,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "POST",
+    path: "/tokens/simulate-top-bid/v1",
+    options: tokensEndpoints.postSimulateTopBidV1Options,
+  });
+
+  server.route({
     method: "GET",
     path: "/tokens/ids/v1",
     options: tokensEndpoints.getTokensIdsV4Options,
