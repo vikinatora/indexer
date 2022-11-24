@@ -424,11 +424,7 @@ export const getTokensV5Options: RouteOptions = {
         FROM tokens t
         ${topBidQuery}
         ${sourceQuery}
-<<<<<<< Updated upstream
-        ${normalizeRoyaltiesQuery}
         ${includeQuantityQuery}
-=======
->>>>>>> Stashed changes
         JOIN collections c ON t.collection_id = c.id
         JOIN contracts con ON t.contract = con.address
       `;
