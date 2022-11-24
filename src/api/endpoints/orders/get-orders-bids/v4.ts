@@ -488,7 +488,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
 
         if (query.normalizeRoyalties && r.missing_royalties) {
           for (let i = 0; i < r.missing_royalties.length; i++) {
-            if (!("bps" in Object.keys(r.missing_royalties[i]))) {
+            if (!Object.keys(r.missing_royalties[i]).includes("bps")) {
               return;
             }
 
@@ -497,15 +497,15 @@ export const getOrdersBidsV4Options: RouteOptions = {
             );
 
             if (index > -1) {
-              feeBreakdown[index].bps += r.missing_royalties[i].bps;
+              feeBreakdown[index].bps += Number(r.missing_royalties[i].bps);
             } else {
               const missingRoyalty = {
-                bps: r.missing_royalties[i].bps,
+                bps: Number(r.missing_royalties[i].bps),
                 kind: "royalty",
                 recipient: r.missing_royalties[i].recipient,
               };
               feeBreakdown.push(missingRoyalty);
-              feeBps += r.missing_royalties[i].bps;
+              feeBps += Number(r.missing_royalties[i].bps);
             }
           }
         }
