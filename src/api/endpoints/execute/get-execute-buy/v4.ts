@@ -19,7 +19,7 @@ import { generateListingDetailsV5 } from "@/orderbook/orders";
 import { getCurrency } from "@/utils/currencies";
 
 const version = "v4";
-
+//TODO: Add Universe here
 export const getExecuteBuyV4Options: RouteOptions = {
   description: "Buy tokens",
   tags: ["api", "x-deprecated"],
@@ -75,7 +75,10 @@ export const getExecuteBuyV4Options: RouteOptions = {
       preferredOrderSource: Joi.string()
         .lowercase()
         .pattern(regex.domain)
-        .when("tokens", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() }),
+        .when("tokens", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
+        .description(
+          "If there are multiple listings with equal best price, prefer this source over others.\nNOTE: if you want to fill a listing that is not the best priced, you need to pass a specific order ID."
+        ),
       source: Joi.string()
         .lowercase()
         .pattern(regex.domain)

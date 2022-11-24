@@ -74,7 +74,10 @@ export const getExecuteBuyV6Options: RouteOptions = {
       preferredOrderSource: Joi.string()
         .lowercase()
         .pattern(regex.domain)
-        .when("tokens", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() }),
+        .when("tokens", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
+        .description(
+          "If there are multiple listings with equal best price, prefer this source over others.\nNOTE: if you want to fill a listing that is not the best priced, you need to pass a specific order ID."
+        ),
       source: Joi.string()
         .lowercase()
         .pattern(regex.domain)
@@ -200,7 +203,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           quantity: token.quantity ?? 1,
           source: order.sourceId !== null ? sources.get(order.sourceId)?.domain ?? null : null,
           currency: order.currency,
-          quote: formatPrice(totalPrice, (await getCurrency(order.currency)).decimals),
+          quote: formatPrice(totalPrice, (await getCurrency(order.currency)).decimals, true),
           rawQuote: totalPrice.toString(),
         });
 
