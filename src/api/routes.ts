@@ -49,6 +49,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collections/activity/v5",
+    options: activitiesEndpoints.getCollectionActivityV5Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/tokens/{token}/activity/v1",
     options: activitiesEndpoints.getTokenActivityV1Options,
   });
@@ -63,6 +69,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/tokens/{token}/activity/v3",
     options: activitiesEndpoints.getTokenActivityV3Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/tokens/{token}/activity/v4",
+    options: activitiesEndpoints.getTokenActivityV4Options,
   });
 
   server.route({
@@ -91,6 +103,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/users/activity/v5",
+    options: activitiesEndpoints.getUserActivityV5Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/activity/v1",
     options: activitiesEndpoints.getActivityV1Options,
   });
@@ -105,6 +123,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/activity/v3",
     options: activitiesEndpoints.getActivityV3Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/activity/v4",
+    options: activitiesEndpoints.getActivityV4Options,
   });
 
   // Admin
@@ -463,6 +487,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/events/asks/v3",
+    options: eventsEndpoints.getAsksEventsV3Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/events/tokens/floor-ask/v2",
     options: eventsEndpoints.getTokensFloorAskV2Options,
   });
@@ -477,6 +507,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/events/bids/v1",
     options: eventsEndpoints.getBidEventsV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/events/bids/v2",
+    options: eventsEndpoints.getBidEventsV2Options,
   });
 
   server.route({
@@ -698,6 +734,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/orders/asks/v4",
+    options: ordersEndpoints.getOrdersAsksV4Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/orders/bids/v1",
     options: ordersEndpoints.getOrdersBidsV1Options,
   });
@@ -718,6 +760,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/orders/bids/v4",
     options: ordersEndpoints.getOrdersBidsV4Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/orders/bids/v5",
+    options: ordersEndpoints.getOrdersBidsV5Options,
   });
 
   server.route({
