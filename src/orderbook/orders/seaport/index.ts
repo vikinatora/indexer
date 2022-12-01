@@ -7,7 +7,7 @@ import pLimit from "p-limit";
 import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { redis } from "@/common/redis";
+import { acquireLock, redis } from "@/common/redis";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
@@ -27,7 +27,7 @@ import * as royalties from "@/utils/royalties";
 import { Royalty } from "@/utils/royalties";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
-import { Tokens } from "@/models/tokens";
+import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 
 export type OrderInfo =
   | {
@@ -101,15 +101,16 @@ export const save = async (
       // Check: order doesn't already exist or partial order
       const orderExists = await idb.oneOrNone(
         `
-        WITH x AS (
-          UPDATE orders
-          SET
-            raw_data = $/rawData/,
-            updated_at = now()
-          WHERE orders.id = $/id/
-          AND raw_data IS NULL
-        )
-        SELECT 1 FROM orders WHERE orders.id = $/id/`,
+          WITH x AS (
+            UPDATE orders
+            SET
+              raw_data = $/rawData/,
+              updated_at = now()
+            WHERE orders.id = $/id/
+              AND raw_data IS NULL
+          )
+          SELECT 1 FROM orders WHERE orders.id = $/id/
+        `,
         {
           id,
           rawData: order.params,
@@ -646,99 +647,6 @@ export const save = async (
       const collection = await getCollection(orderParams);
 
       if (!collection) {
-        logger.info(
-          "orders-seaport-save-partial",
-          `Unknown Collection. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}`
-        );
-
-        if (orderParams.kind === "contract-wide") {
-          try {
-            const contractCollections = await redb.manyOrNone(
-              `
-          SELECT
-            collections.id,
-            collections.token_id_range
-          FROM collections
-          WHERE collections.contract = $/contract/
-        `,
-              {
-                contract: toBuffer(orderParams.contract),
-              }
-            );
-
-            logger.info(
-              "orders-seaport-save-partial",
-              `Unknown Collection - Collections Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, contractCollections=${contractCollections.length}`
-            );
-
-            if (contractCollections) {
-              for (const contractCollection of contractCollections) {
-                let tokenId = "1";
-
-                if (_.isNull(contractCollection.tokenIdRange)) {
-                  tokenId = await Tokens.getSingleToken(contractCollection.id);
-                } else if (!_.isEmpty(contractCollection.token_id_range)) {
-                  tokenId = `${contractCollection.token_id_range[0]}`;
-                }
-
-                // await collectionUpdatesMetadata.addToQueue(
-                //   orderParams.contract,
-                //   tokenId,
-                //   "",
-                //   0,
-                //   true
-                // );
-
-                logger.info(
-                  "orders-seaport-save-partial",
-                  `Unknown Collection - Collection Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, collectionId=${contractCollection.id}, tokenId=${tokenId}`
-                );
-              }
-            } else {
-              const contractToken = await redb.oneOrNone(
-                `
-            SELECT
-              tokens.token_id
-            FROM tokens
-            WHERE tokens.contract = $/contract/
-            LIMIT 1
-          `,
-                {
-                  contract: toBuffer(orderParams.contract),
-                }
-              );
-
-              logger.info(
-                "orders-seaport-save-partial",
-                `Unknown Collection - Token Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, tokenId=${contractToken?.token_id}`
-              );
-
-              // if (contractToken) {
-              //   await metadataIndexFetch.addToQueue(
-              //     [
-              //       {
-              //         kind: "single-token",
-              //         data: {
-              //           method: config.metadataIndexingMethod,
-              //           contract: orderParams.contract,
-              //           tokenId: contractToken.token_id,
-              //           collection: orderParams.contract,
-              //         },
-              //       },
-              //     ],
-              //     true,
-              //     getNetworkSettings().metadataMintDelay
-              //   );
-              // }
-            }
-          } catch (error) {
-            logger.error(
-              "orders-seaport-save-partial",
-              `Unknown Collection - Error. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, error=${error}`
-            );
-          }
-        }
-
         return results.push({
           id,
           status: "unknown-collection",
@@ -1539,9 +1447,8 @@ const getCollection = async (
       }
     );
   } else {
-    if (getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)) {
-      return redb.oneOrNone(
-        `
+    const collection = await redb.oneOrNone(
+      `
           SELECT
             collections.id,
             collections.new_royalties,
@@ -1550,30 +1457,37 @@ const getCollection = async (
           WHERE collections.contract = $/contract/
             AND collections.slug = $/collectionSlug/
         `,
-        {
-          contract: toBuffer(orderParams.contract),
-          collectionSlug: orderParams.collectionSlug,
-        }
+      {
+        contract: toBuffer(orderParams.contract),
+        collectionSlug: orderParams.collectionSlug,
+      }
+    );
+
+    if (!collection) {
+      const lockAcquired = await acquireLock(
+        `unknown-slug-refresh-contract-collections-metadata-lock:${orderParams.contract}:${orderParams.collectionSlug}`,
+        60 * 60
       );
-    } else {
-      return redb.oneOrNone(
-        `
-          SELECT
-            collections.id,
-            collections.new_royalties,
-            collections.token_set_id
-          FROM collections
-          WHERE collections.id = $/id/
-        `,
-        {
-          id: orderParams.contract,
-        }
+
+      logger.info(
+        "orders-seaport-save-partial",
+        `Unknown Collection. orderId=${orderParams.hash}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, lockAcquired=${lockAcquired}`
       );
+
+      if (lockAcquired) {
+        // Try to refresh the contract collections metadata.
+        await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
+      }
     }
+
+    return collection;
   }
 };
 
-const getCollectionFloorAskValue = async (contract: string, tokenId: number) => {
+const getCollectionFloorAskValue = async (
+  contract: string,
+  tokenId: number
+): Promise<number | undefined> => {
   if (getNetworkSettings().multiCollectionContracts.includes(contract)) {
     const collection = await Collections.getByContractAndTokenId(contract, tokenId);
     return collection?.floorSellValue;

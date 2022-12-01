@@ -347,6 +347,12 @@ export const setupRoutes = (server: Server) => {
     options: attributesEndpoints.getAttributesExploreV3Options,
   });
 
+  server.route({
+    method: "GET",
+    path: "/collections/{collection}/attributes/explore/v4",
+    options: attributesEndpoints.getAttributesExploreV4Options,
+  });
+
   // Collections
 
   server.route({
@@ -1012,6 +1018,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/users/{user}/tokens/v5",
     options: tokensEndpoints.getUserTokensV5Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/users/{user}/tokens/v6",
+    options: tokensEndpoints.getUserTokensV6Options,
   });
 
   server.route({
