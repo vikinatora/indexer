@@ -26,6 +26,7 @@ import * as zora from "@/events-sync/data/zora";
 import * as manifold from "@/events-sync/data/manifold";
 import * as cryptoarte from "@/events-sync/data/cryptoarte";
 import * as beeple from "@/events-sync/data/beeple";
+import * as cryptoVoxels from "@/events-sync/data/cryptovoxels";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -107,7 +108,8 @@ export type EventDataKind =
   | "manifold-cancel"
   | "manifold-finalize"
   | "cryptoarte-transfer"
-  | "beeple-transfer";
+  | "beeple-transfer"
+  | "cryptovoxels-transfer";
 
 export type EventData = {
   kind: EventDataKind;
@@ -195,6 +197,7 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       manifold.cancel,
       cryptoarte.transfer,
       beeple.transfer,
+      cryptoVoxels.transfer,
     ];
   } else {
     return (
@@ -359,6 +362,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return cryptoarte.transfer;
     case "beeple-transfer":
       return beeple.transfer;
+    case "cryptovoxels-transfer":
+      return cryptoVoxels.transfer;
 
     default:
       return undefined;
