@@ -92,24 +92,24 @@ describe("[ReservoirV6_0_0] SuperRare listings", () => {
     const feesOnTop: BigNumber[] = [];
     for (let i = 0; i < listingsCount; i++) {
       listings.push({
-        seller: alice,
+        seller: getRandomBoolean() ? alice : bob,
         nft: {
           contract: erc721,
           id: getRandomInteger(1, 10000),
         },
-        price: parseEther("1"),
-        isCancelled: partial,
+        price: parseEther(getRandomFloat(0.0001, 2).toFixed(6)),
+        isCancelled: partial && getRandomBoolean(),
       });
       if (chargeFees) {
-        feesOnTop.push(parseEther("0.1"));
+        feesOnTop.push(parseEther(getRandomFloat(0.0001, 0.1).toFixed(6)));
       }
     }
     await setupSuperRareListings(listings);
     // Prepare executions
 
-    const totalPrice = bn(listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0)));
+    let totalPrice = bn(listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0)));
     // SuperRare fee
-    totalPrice.add(totalPrice.mul(3).div(100));
+    totalPrice = totalPrice.add(totalPrice.mul(3).div(100));
 
     const executions: ExecutionInfo[] = [
       // 1. Fill listings
